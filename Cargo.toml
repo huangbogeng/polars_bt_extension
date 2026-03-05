@@ -1,0 +1,35 @@
+[package]
+name = "polars_bt_extension"
+version = "0.1.2"
+edition = "2021"
+
+[lib]
+name = "polars_bt_extension"
+crate-type = ["cdylib"]
+
+
+[dependencies]
+# PyO3
+# numpy = "0.26"                                                            # matrix interop
+pyo3 = { version = "0.26.0", features = ["abi3-py39", "extension-module"] }
+pyo3-polars = { version = "0.25.0", features = ["derive", "lazy"] }
+
+serde = { version = "1", features = ["derive"] }
+# polars
+polars = { version = "0.52", features = [
+    "lazy",
+    "diff",
+    "array_count",
+    "abs",
+    "cross_join",
+    "rank",
+    "log",
+    "cum_agg",
+    "round_series",
+    "chunked_ids",
+    "dtype-i128",
+    "performant",
+    "dtype-datetime",
+], default-features = false }
+
+chrono = "0.4.42"

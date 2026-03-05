@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: rustfmt, clippy
+
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache uv
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
+        key: ${{ runner.os }}-uv-${{ hashFiles('**/pyproject.toml') }}
+
+    - name: Install uv
+      run: pip install uv
+
+    - name: Install dependencies with uv
+      run: uv pip install --system maturin polars pytest
+
+    - name: Run rustfmt
+      run: cargo +nightly fmt --all -- --check
+
+    - name: Run clippy
+      run: cargo +nightly clippy --package polars_bt_extension --all-features -- -D warnings
+
+    - name: Build wheels with maturin
+      run: maturin build --release
+
+    - name: Install wheels with uv
+      run: uv pip install --system target/wheels/*.whl --force-reinstall
+
+    - name: Run tests with uv
+      run: uv run pytest test_backtest.py -v

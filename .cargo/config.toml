@@ -1,0 +1,5 @@
+[build]
+jobs = 128
+
+[test]
+jobs = 128
