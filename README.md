@@ -1,4 +1,4 @@
-# polars_bt_extension
+# polars_bt
 
 A high-performance backtesting engine plugin for Polars, designed for financial trading strategy evaluation with efficient order matching and position management.
 
@@ -17,8 +17,8 @@ A high-performance backtesting engine plugin for Polars, designed for financial 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/polars_bt_extension.git
-cd polars_bt_extension
+git clone https://github.com/yourusername/polars_bt.git
+cd polars_bt
 
 # Install in development mode
 maturin develop
@@ -30,14 +30,14 @@ maturin develop --release
 ### From PyPI (Coming Soon)
 
 ```bash
-pip install polars_bt_extension
+pip install polars_bt
 ```
 
 ## Quick Start
 
 ```python
 import polars as pl
-from polars_bt_extension import backtest
+from polars_bt import backtest
 
 # Create sample data
 data = pl.DataFrame({
