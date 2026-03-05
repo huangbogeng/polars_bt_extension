@@ -1,4 +1,4 @@
-//! polars_bt_extension - A high-performance backtesting engine plugin for Polars
+//! polars_bt - A high-performance backtesting engine plugin for Polars
 //!
 //! This library provides a Polars plugin for financial backtesting with
 //! efficient order matching and position management.
