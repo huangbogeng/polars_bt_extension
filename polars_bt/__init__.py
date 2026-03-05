@@ -1,7 +1,7 @@
 from __future__ import annotations
 import importlib.metadata
 
-__version__ = importlib.metadata.version("polars_bt_extension")
+__version__ = importlib.metadata.version("polars_bt")
 
 from .backtest import backtest
 
