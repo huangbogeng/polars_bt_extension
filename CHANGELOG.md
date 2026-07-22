@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-22
+
+### Fixed
+- `mosaic` now accepts nullable numeric expressions without exposing Rust contiguous-array errors
+- Numeric nulls remain observable as NaN diagnostics instead of being silently replaced with zero
+- Residual Rust-side numeric nulls now report the affected public input name
+
 ## [0.2.0] - 2026-07-22
 
 ### Added
@@ -31,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Position management
 - Python API
 
-[Unreleased]: https://github.com/huangbogeng/polars_bt_extension/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/huangbogeng/polars_bt_extension/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/huangbogeng/polars_bt_extension/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/huangbogeng/polars_bt_extension/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/huangbogeng/polars_bt_extension/releases/tag/v0.1.2

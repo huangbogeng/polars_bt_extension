@@ -107,6 +107,28 @@ def test_mosaic_rejects_non_rectangular_panel():
 
 
 @pytest.mark.parametrize(
+    "column",
+    ["weight", "ovn_ret", "ind_ret", "prev_close", "vwap"],
+)
+def test_mosaic_nullable_numeric_input_matches_nan_semantics(column: str):
+    values = dense_panel()[column].to_list()
+    nullable = dense_panel().with_columns(
+        pl.Series(column, [None, *values[1:]], dtype=pl.Float64)
+    )
+    nan = dense_panel().with_columns(
+        pl.Series(column, [float("nan"), *values[1:]], dtype=pl.Float64)
+    )
+
+    assert_frame_equal(
+        run_mosaic(nullable),
+        run_mosaic(nan),
+        check_exact=False,
+        rel_tol=0.0,
+        abs_tol=1e-12,
+    )
+
+
+@pytest.mark.parametrize(
     "overrides",
     [
         {"weight": [float("nan"), 0.5, 0.0, 1.0]},

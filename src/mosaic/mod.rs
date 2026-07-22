@@ -42,6 +42,15 @@ fn boolean_values(series: &Series) -> PolarsResult<Vec<bool>> {
     Ok(values.iter().map(Option::unwrap).collect())
 }
 
+fn numeric_values<'a>(series: &'a Series, name: &str) -> PolarsResult<&'a [f64]> {
+    let values = series.f64()?;
+    polars_ensure!(
+        values.null_count() == 0,
+        ComputeError: "mosaic numeric input {name} cannot contain nulls"
+    );
+    values.cont_slice()
+}
+
 #[polars_expr(output_type_func=output_type_mosaic)]
 pub fn mosaic(inputs: &[Series], kwargs: MosaicKwargs) -> PolarsResult<Series> {
     polars_ensure!(inputs.len() == 9, ComputeError: "mosaic requires exactly 9 inputs");
@@ -71,11 +80,11 @@ pub fn mosaic(inputs: &[Series], kwargs: MosaicKwargs) -> PolarsResult<Series> {
     let prev_close_series = inputs[6].rechunk();
     let vwap_series = inputs[7].rechunk();
 
-    let weight = weight_series.f64()?.cont_slice()?;
-    let ovn_ret = ovn_ret_series.f64()?.cont_slice()?;
-    let ind_ret = ind_ret_series.f64()?.cont_slice()?;
-    let prev_close = prev_close_series.f64()?.cont_slice()?;
-    let vwap = vwap_series.f64()?.cont_slice()?;
+    let weight = numeric_values(&weight_series, "weight")?;
+    let ovn_ret = numeric_values(&ovn_ret_series, "ovn_ret")?;
+    let ind_ret = numeric_values(&ind_ret_series, "ind_ret")?;
+    let prev_close = numeric_values(&prev_close_series, "prev_close")?;
+    let vwap = numeric_values(&vwap_series, "vwap")?;
     let buyable = boolean_values(&inputs[4])?;
     let sellable = boolean_values(&inputs[5])?;
     let is_rebalance = boolean_values(&inputs[8])?;
@@ -171,4 +180,21 @@ pub fn mosaic(inputs: &[Series], kwargs: MosaicKwargs) -> PolarsResult<Series> {
     let dates = inputs[0].take(&IdxCa::from_vec("date_idx".into(), date_indices))?;
 
     build_output(dates, snapshots)
+}
+
+#[cfg(test)]
+mod tests {
+    use polars::prelude::*;
+
+    use super::numeric_values;
+
+    #[test]
+    fn rejects_nullable_numeric_input_with_public_name() {
+        let series = Series::new("weight".into(), [Some(0.5_f64), None]);
+        let error = numeric_values(&series, "weight").unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("mosaic numeric input weight cannot contain nulls"));
+    }
 }

@@ -10,6 +10,10 @@ def _expr(value: str | pl.Expr) -> pl.Expr:
     return pl.col(value) if isinstance(value, str) else value
 
 
+def _numeric_expr(value: str | pl.Expr) -> pl.Expr:
+    return _expr(value).cast(pl.Float64).fill_null(float("nan"))
+
+
 def mosaic(
     date: str | pl.Expr,
     weight: str | pl.Expr,
@@ -28,13 +32,13 @@ def mosaic(
     return register_plugin_function(
         args=[
             _expr(date),
-            _expr(weight).cast(pl.Float64),
-            _expr(ovn_ret).cast(pl.Float64),
-            _expr(ind_ret).cast(pl.Float64),
+            _numeric_expr(weight),
+            _numeric_expr(ovn_ret),
+            _numeric_expr(ind_ret),
             _expr(buyable).cast(pl.Boolean),
             _expr(sellable).cast(pl.Boolean),
-            _expr(prev_close).cast(pl.Float64),
-            _expr(vwap).cast(pl.Float64),
+            _numeric_expr(prev_close),
+            _numeric_expr(vwap),
             _expr(is_rebalance).cast(pl.Boolean),
         ],
         plugin_path=LIB,

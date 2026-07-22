@@ -116,6 +116,8 @@ Mosaic's input contract is intentionally narrow:
 - the asset row order is stable across dates, so the engine uses row offsets and
   performs no joins or asset hashing;
 - preprocessing materializes a complete panel before the call;
+- numeric nulls in `weight`, `ovn_ret`, `ind_ret`, `prev_close`, and `vwap`
+  are preserved as NaN semantics rather than silently filled with zero;
 - use it as an eager whole-table expression; it changes the output length;
 - fees default to `st_fee=6e-4` and `lg_fee=1e-4`.
 
@@ -156,7 +158,8 @@ Verbose diagnostics add no result fields and do not change tolerated-input
 semantics. Non-finite portfolio state is always a hard error with day, asset,
 and calculation-stage context. Diagnostic reports retain only counts and the
 first location for each category, so memory use does not grow with the number
-of anomalies.
+of anomalies. Nullable returns remain visible as `NAN_OVN_RET` or `NAN_IND_RET`,
+and nullable prices remain visible as `INVALID_PREV_CLOSE` or `INVALID_VWAP`.
 
 Mosaic cannot detect cross-day asset-order changes because asset identifiers
 are intentionally absent from its row-offset protocol. Callers must continue

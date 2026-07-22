@@ -41,6 +41,20 @@ def run_diagnostic_script(tmp_path, mode: str) -> subprocess.CompletedProcess[st
             }})
             asset_num = 1
             st_fee = 0.0
+        elif mode == "nullable":
+            panel = pl.DataFrame({{
+                "date": [1, 1, 2, 2],
+                "weight": [0.5, 0.5, 0.5, 0.5],
+                "ovn_ret": [None, 0.0, 0.0, 0.0],
+                "ind_ret": [0.0, 0.0, 0.0, 0.0],
+                "buyable": [True, True, True, True],
+                "sellable": [True, True, True, True],
+                "prev_close": [10.0, 10.0, 10.0, 10.0],
+                "vwap": [10.0, None, 10.0, 10.0],
+                "is_rebalance": [True, True, True, True],
+            }})
+            asset_num = 2
+            st_fee = 0.0
         else:
             panel = pl.DataFrame({{
                 "date": [1, 2, 3, 3],
@@ -77,7 +91,7 @@ def run_diagnostic_script(tmp_path, mode: str) -> subprocess.CompletedProcess[st
         if mode == "quiet":
             pl.Config.set_verbose(False)
             result = execute()
-        elif mode in {{"set", "halt"}}:
+        elif mode in {{"set", "halt", "nullable"}}:
             pl.Config.set_verbose(True)
             result = execute()
         elif mode == "toggle":
@@ -142,6 +156,16 @@ def test_mosaic_reloads_verbose_after_a_quiet_call(tmp_path):
     assert completed.returncode == 0, completed.stderr
     assert completed.stderr.count("[polars-bt][mosaic][INFO] event=start") == 1
     assert completed.stderr.count("[polars-bt][mosaic][INFO] event=finish") == 1
+
+
+def test_mosaic_preserves_nullable_market_data_diagnostics(tmp_path):
+    completed = run_diagnostic_script(tmp_path, "nullable")
+
+    assert completed.returncode == 0, completed.stderr
+    assert "nan_ovn_ret=1" in completed.stderr
+    assert "invalid_vwap=1" in completed.stderr
+    assert "code=NAN_OVN_RET day_index=0 asset_index=0" in completed.stderr
+    assert "code=INVALID_VWAP day_index=0 asset_index=1" in completed.stderr
 
 
 def test_mosaic_logs_negative_cash_halt(tmp_path):
