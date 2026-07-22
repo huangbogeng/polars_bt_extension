@@ -107,6 +107,56 @@ def test_mosaic_rejects_non_rectangular_panel():
 
 
 @pytest.mark.parametrize(
+    "overrides",
+    [
+        {"weight": [float("nan"), 0.5, 0.0, 1.0]},
+        {"ovn_ret": [float("nan"), 0.0, 0.0, 0.0]},
+        {"is_rebalance": [False, True, True, True]},
+        {"vwap": [0.0, 10.0, 10.0, 10.0]},
+        {"weight": [-0.2, 0.5, 0.0, 1.0]},
+    ],
+    ids=[
+        "nan_weight",
+        "nan_return",
+        "mixed_rebalance",
+        "invalid_price",
+        "negative_weight",
+    ],
+)
+def test_mosaic_preserves_tolerated_input_semantics(overrides):
+    df = dense_panel().with_columns(
+        *(pl.Series(name, values) for name, values in overrides.items())
+    )
+
+    expected = reference_ptrader(df, 2, st_fee=0.0, lg_fee=0.0)
+    actual = run_mosaic(df)
+
+    assert_frame_equal(actual, expected, check_exact=False, rel_tol=0.0, abs_tol=1e-12)
+
+
+def test_mosaic_preserves_negative_cash_snapshot_and_truncation():
+    df = pl.DataFrame(
+        {
+            "date": [1, 2, 3],
+            "weight": [0.4, 0.0, 0.0],
+            "ovn_ret": [0.0, 0.0, 0.0],
+            "ind_ret": [0.0, 0.0, 0.0],
+            "buyable": [True, True, True],
+            "sellable": [True, True, True],
+            "prev_close": [10.0, 10.0, 10.0],
+            "vwap": [10.0, 10.0, 10.0],
+            "is_rebalance": [True, True, True],
+        }
+    )
+
+    expected = reference_ptrader(df, 1, st_fee=3.0, lg_fee=0.0)
+    actual = run_mosaic(df, asset_num=1, st_fee=3.0)
+
+    assert actual.height == 2
+    assert_frame_equal(actual, expected, check_exact=False, rel_tol=0.0, abs_tol=1e-12)
+
+
+@pytest.mark.parametrize(
     ("panel_kwargs", "st_fee", "lg_fee"),
     [
         ({}, 6e-4, 1e-4),

@@ -3,11 +3,14 @@ mod engine;
 mod output;
 mod portfolio;
 
+use diagnostics::{inspect_inputs, DiagnosticInputs};
 use engine::{run_slices, Config, DailySlice};
 use output::build_output;
 use polars::prelude::*;
 use pyo3_polars::derive::polars_expr;
 use serde::Deserialize;
+
+use crate::diagnostics::{emit, verbose_enabled, Level};
 
 pub fn output_type_mosaic(input_fields: &[Field]) -> PolarsResult<Field> {
     polars_ensure!(!input_fields.is_empty(), ComputeError: "mosaic requires date input");
@@ -78,6 +81,47 @@ pub fn mosaic(inputs: &[Series], kwargs: MosaicKwargs) -> PolarsResult<Series> {
     let is_rebalance = boolean_values(&inputs[8])?;
 
     let day_count = row_count / kwargs.asset_num;
+    let verbose = verbose_enabled();
+    if verbose {
+        emit(
+            "mosaic",
+            Level::Info,
+            "start",
+            &[
+                ("rows", row_count.to_string()),
+                ("days", day_count.to_string()),
+                ("assets", kwargs.asset_num.to_string()),
+            ],
+        );
+
+        let report = inspect_inputs(
+            &inputs[0],
+            DiagnosticInputs {
+                weight,
+                ovn_ret,
+                ind_ret,
+                prev_close,
+                vwap,
+                is_rebalance: &is_rebalance,
+            },
+            kwargs.asset_num,
+        )?;
+        let summary = report.summary_fields();
+        if !summary.is_empty() {
+            emit("mosaic", Level::Warn, "input_summary", &summary);
+        }
+        for first in report.first_diagnostics() {
+            let mut fields = vec![
+                ("code", first.code.to_string()),
+                ("day_index", first.location.day_index.to_string()),
+            ];
+            if let Some(asset_index) = first.location.asset_index {
+                fields.push(("asset_index", asset_index.to_string()));
+            }
+            emit("mosaic", Level::Warn, "first", &fields);
+        }
+    }
+
     let mut days = Vec::with_capacity(day_count);
     for start in (0..row_count).step_by(kwargs.asset_num) {
         let end = start + kwargs.asset_num;
@@ -97,6 +141,29 @@ pub fn mosaic(inputs: &[Series], kwargs: MosaicKwargs) -> PolarsResult<Series> {
         &days,
         Config::new(kwargs.asset_num, kwargs.st_fee, kwargs.lg_fee),
     )?;
+    if verbose {
+        if let Some(halt) = outcome.halt {
+            emit(
+                "mosaic",
+                Level::Warn,
+                "halt",
+                &[
+                    ("reason", "NEGATIVE_CASH".to_string()),
+                    ("day_index", halt.day_index.to_string()),
+                    ("cash", halt.cash.to_string()),
+                ],
+            );
+        }
+        emit(
+            "mosaic",
+            Level::Info,
+            "finish",
+            &[
+                ("completed_days", outcome.snapshots.len().to_string()),
+                ("expected_days", day_count.to_string()),
+            ],
+        );
+    }
     let snapshots = &outcome.snapshots;
     let date_indices = (0..snapshots.len())
         .map(|day| (day * kwargs.asset_num) as IdxSize)
