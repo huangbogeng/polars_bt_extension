@@ -8,21 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial release of polars_bt_extension backtesting engine plugin
-- High-performance order matching with DefaultMatcher and EasyMatcher
-- Comprehensive position management with P&L tracking
-- Support for trading limits (limit up/down)
-- Python API integration with Polars
-- Complete documentation and examples
+- `pulse`, the isolated name for the existing T0 quote/signal engine
+- `mosaic`, a zero-IPC cross-sectional engine for dense daily panels
+- Python parity coverage and a 12.5-million-row performance benchmark
 
 ### Changed
-- Refactored project structure for better maintainability
-- Optimized code for performance with zero-copy data transfer
-- Improved code quality with clippy and rustfmt
+- Package version is now 0.2.0 and supports CPython 3.10–3.12 with Polars 1.43.x
+- The old public `backtest` name is replaced by `pulse`
+- Rust modules are split by the Pulse and Mosaic state models
 
 ### Fixed
-- All clippy warnings resolved
-- Documentation formatting issues fixed
+- CI now builds the current crate and runs the current Python test suite
 
 ## [0.1.2] - 2025-03-04
 

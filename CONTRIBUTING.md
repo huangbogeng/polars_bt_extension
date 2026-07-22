@@ -1,185 +1,44 @@
-# Contributing to polars_bt_extension
+# Contributing
 
-Thank you for your interest in contributing to polars_bt_extension! This document provides guidelines and instructions for contributing to the project.
+## Development environment
 
-## Code of Conduct
-
-Be respectful, inclusive, and constructive in all interactions. We aim to maintain a welcoming environment for all contributors.
-
-## Getting Started
-
-### Prerequisites
-
-- Rust 1.70 or later
-- Python 3.9 or later
-- maturin
-- Git
-
-### Setting Up Development Environment
+Use CPython 3.10, 3.11, or 3.12 with Polars 1.43.x and the repository's Rust
+nightly toolchain.
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/polars_bt_extension.git
-cd polars_bt_extension
-
-# Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install development dependencies
-pip install maturin polars pytest
-
-# Install the package in development mode
-maturin develop
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python \
+  'polars>=1.43,<1.44' maturin pytest ruff mypy
+make install-release
 ```
 
-## Development Workflow
+## Checks
 
-### 1. Create a Branch
+Run the complete local gate before submitting a change:
 
 ```bash
-git checkout -b feature/your-feature-name
-# or
-git checkout -b fix/your-bug-fix
+make pre-commit
 ```
 
-### 2. Make Changes
-
-- Write clean, readable code
-- Follow existing code style and conventions
-- Add tests for new functionality
-- Update documentation as needed
-
-### 3. Code Quality Checks
-
-Before submitting, ensure your code passes all quality checks:
+For performance-sensitive Mosaic changes, also run:
 
 ```bash
-# Format code
-cargo fmt
-
-# Run clippy (linting)
-cargo clippy --all-targets --all-features -- -D warnings
-
-# Run tests
-cargo test
-python test_backtest.py
-
-# Check documentation
-cargo doc --no-deps --all-features
+.venv/bin/python benchmarks/benchmark_mosaic.py
 ```
 
-### 4. Commit Changes
+The accepted scale is 2,500 days by 5,000 assets. The timed expression boundary
+must remain at or below five seconds.
 
-```bash
-git add .
-git commit -m "Add your commit message here"
-```
+## Design rules
 
-**Commit Message Guidelines:**
+- Keep `pulse` and `mosaic` isolated; do not mix their state models.
+- Preserve Mosaic's dense, date-major, fixed-width input contract.
+- Do not add asset joins or hashing inside the Rust daily loop.
+- Preserve sell-before-buy order and the strict cumulative cash threshold.
+- Add a failing test before changing behavior, then verify it passes.
+- Keep Python Polars and Rust Polars/pyo3-polars versions ABI-aligned.
 
-- Use the present tense ("Add feature" not "Added feature")
-- Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
-- Limit the first line to 72 characters or less
-- Reference issues and pull requests liberally
+## Pull requests
 
-Examples:
-- `Add support for custom matchers`
-- `Fix memory leak in position tracking`
-- `Update documentation for API changes`
-
-### 5. Push and Create Pull Request
-
-```bash
-git push origin feature/your-feature-name
-```
-
-Then create a Pull Request on GitHub with:
-- Clear title and description
-- Reference any related issues
-- Explain the changes and their purpose
-- Include screenshots if applicable
-
-## Coding Standards
-
-### Rust Code
-
-- Follow [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
-- Use meaningful variable and function names
-- Add doc comments for all public APIs
-- Prefer `unwrap_or_default()` over manual `match` for Option handling
-- Use array literals instead of `vec!` when possible
-
-### Python Code
-
-- Follow [PEP 8](https://pep8.org/)
-- Use type hints where appropriate
-- Add docstrings for all public functions
-- Keep functions focused and small
-
-### Documentation
-
-- All public APIs must have documentation
-- Use clear, concise language
-- Include examples for complex functionality
-- Keep documentation up to date with code changes
-
-## Testing
-
-### Writing Tests
-
-- Write tests for all new functionality
-- Test both success and failure cases
-- Use descriptive test names
-- Keep tests independent and fast
-
-### Running Tests
-
-```bash
-# Rust tests
-cargo test
-
-# Python tests
-pytest test_backtest.py -v
-
-# Run specific test
-cargo test test_name
-pytest test_backtest.py::test_function -v
-```
-
-## Project Structure
-
-```
-polars_bt_extension/
-├── src/
-│   ├── exchange/       # Exchange simulator and matching logic
-│   ├── order.rs        # Order management
-│   ├── position.rs     # Position tracking
-│   └── lib.rs         # Library entry point
-├── polars_bt_extension/             # Python package
-│   ├── __init__.py
-│   └── backtest.py    # Python API
-├── tests/             # Test files
-├── .github/           # GitHub workflows
-├── Cargo.toml         # Rust dependencies
-├── pyproject.toml     # Python configuration
-└── README.md          # Project documentation
-```
-
-## Release Process
-
-Releases are handled by maintainers through GitHub Actions:
-
-1. Update version in `Cargo.toml`
-2. Create a git tag: `git tag -a v1.0.0 -m "Release version 1.0.0"`
-3. Push the tag: `git push origin v1.0.0`
-4. GitHub Actions will automatically build and publish to PyPI
-
-## Questions?
-
-Feel free to:
-- Open an issue for bugs or feature requests
-- Start a discussion for questions or ideas
-- Contact maintainers directly for urgent matters
-
-Thank you for contributing to polars_bt_extension! 🚀
+Describe the behavior change, include the exact verification commands, and
+report the 12.5-million-row timing when the Mosaic hot path changes.
