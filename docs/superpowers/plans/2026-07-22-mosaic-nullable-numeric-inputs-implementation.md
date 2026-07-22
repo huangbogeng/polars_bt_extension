@@ -82,6 +82,6 @@ Expected: Rust tests, Python tests, formatting, Clippy, Ruff, and the 12.5-milli
 
 Commit only this repository's changes and push `main` after checking a clean diff.
 
-- [ ] **Step 4: Publish and verify PyPI**
+- [ ] **Step 4: Publish to PyPI**
 
-After main CI succeeds, create GitHub Release `v0.2.1`. Require the Release workflow and public PyPI JSON/import verification to succeed before reporting completion.
+After main CI succeeds, create GitHub Release `v0.2.1`. Require the tested artifacts to upload successfully through Trusted Publishing; do not make the Release result depend on immediate public-index propagation.

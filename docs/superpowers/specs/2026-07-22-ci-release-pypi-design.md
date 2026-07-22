@@ -33,7 +33,8 @@
 3. 构建一个 manylinux2014 x86_64 abi3-py310 wheel 和一个 sdist，并作为单一 artifact 上传。
 4. 下载 wheel，在 CPython 3.10、3.11、3.12 上分别安装并运行 Python 测试。
 5. 只有所有检查通过后，`publish` job 才进入受保护的 `pypi` environment；该 job 单独获得 `id-token: write`，通过 PyPI Trusted Publishing 上传之前测试过的同一组文件。
-6. 发布后查询 PyPI JSON，并从公共 PyPI 安装精确版本做 `import polars_bt` 冒烟测试。允许短暂重试，以覆盖索引传播延迟。
+
+工作流以 Trusted Publishing 上传成功作为终点，不立即查询或安装公共 PyPI。PyPI API、索引和 resolver 的传播并非原子操作，紧随上传的公共安装检查会产生假失败。
 
 PyPI Trusted Publisher 的一次性配置为：GitHub owner `huangbogeng`、repository `polars_bt_extension`、workflow `release.yml`、environment `pypi`。流程不保存长期 PyPI token。
 
@@ -49,8 +50,7 @@ PyPI Trusted Publisher 的一次性配置为：GitHub owner `huangbogeng`、repo
 - tag 与包版本不一致时，在构建和上传前失败。
 - 任一质量检查、构建或 Python 版本测试失败时，不进入 `publish`。
 - PyPI 上传失败时保留 GitHub Actions 日志和构建 artifact，不修改或重写 GitHub tag。
-- PyPI 公共验证失败时，工作流显示失败，但已经上传的版本保持不可变；诊断后发布新的补丁版本。
-- `alpha-lab` 依赖只在 PyPI 公共验证成功后添加，避免锁定一个尚不可安装的版本。
+- 上传后的索引传播不属于 Release 工作流失败边界，消费方按自身依赖升级节奏解析新版本。
 
 ## 验收标准
 
@@ -59,4 +59,4 @@ PyPI Trusted Publisher 的一次性配置为：GitHub owner `huangbogeng`、repo
 - 发布 job 只使用 OIDC Trusted Publishing，不引用 PyPI API token secret。
 - wheel 标签体现 abi3-py310 和 manylinux2014 x86_64；同时产出 sdist。
 - `Cargo.lock` 被版本控制，Changelog 和版本链接准确。
-- `0.2.0` 在公共 PyPI 可查询、可安装并可导入后，才更新 `alpha-lab` 的依赖和锁文件。
+- Release 工作流在 Trusted Publishing 上传成功后结束，不受 PyPI 索引传播延迟影响。

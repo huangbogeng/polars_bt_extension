@@ -169,9 +169,9 @@ with:
 
 不设置用户名、密码或 token secret。
 
-- [ ] **Step 7: 验证公共 PyPI**
+- [ ] **Step 7: 以 Trusted Publishing 成功作为发布终点**
 
-`verify-pypi` 依赖 `publish`，从 tag 得到版本，最多重试 12 次查询 `https://pypi.org/pypi/polars-bt/<version>/json`；可见后使用 `uv pip install --system --no-cache polars-bt==<version>`，并断言 `polars_bt.__version__` 等于该版本。
+不添加发布后的公共 PyPI 查询或安装 job。PyPI API 与 resolver 索引可能不同步，立即安装会把成功上传误报为 Release 失败。
 
 ### Task 4: 本地验证与提交
 
