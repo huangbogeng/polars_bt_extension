@@ -1,6 +1,6 @@
 [package]
 name = "polars_bt"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 
 [lib]
@@ -9,27 +9,11 @@ crate-type = ["cdylib"]
 
 
 [dependencies]
-# PyO3
-# numpy = "0.26"                                                            # matrix interop
-pyo3 = {version = "0.26", features = ["abi3-py39", "extension-module"]}
-pyo3-polars = {version = "0.25", features = ["derive", "lazy"]} 
-# Serialization
-serde = {version = "*", features=["derive"]}
-# polars
-polars = { version = "0.52.0", features = [
-    "lazy",
-    "diff",
-    "array_count",
-    "abs",
-    "cross_join",
-    "rank",
-    "log",
-    "cum_agg",
-    "round_series",
-    "chunked_ids",
-    "performant",
+pyo3 = { version = "0.28", features = ["abi3-py39", "extension-module"] }
+pyo3-polars = { version = "0.27.0", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+polars = { version = "0.54.4", default-features = false, features = [
     "dtype-datetime",
-    "timezones",
-], default-features = false }
-
+    "dtype-struct",
+] }
 chrono = "0.4.42"
