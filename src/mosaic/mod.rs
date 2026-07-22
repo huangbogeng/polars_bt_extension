@@ -1,3 +1,4 @@
+mod diagnostics;
 mod engine;
 mod output;
 mod portfolio;

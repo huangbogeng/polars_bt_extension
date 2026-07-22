@@ -25,10 +25,7 @@ pub fn render_record(
     event: &str,
     fields: &[(&str, String)],
 ) -> String {
-    let mut output = format!(
-        "[polars-bt][{component}][{}] event={event}",
-        level.as_str()
-    );
+    let mut output = format!("[polars-bt][{component}][{}] event={event}", level.as_str());
     for (key, value) in fields {
         output.push(' ');
         output.push_str(key);
