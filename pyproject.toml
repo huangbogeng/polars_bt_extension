@@ -4,6 +4,9 @@ build-backend = "maturin"
 
 [project]
 name = "polars_bt"
+description = "Rust-backed Polars expression plugins for T0 and cross-sectional backtesting"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
 classifiers = [
   "Programming Language :: Rust",
@@ -14,6 +17,10 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = ["polars>=1.43.0,<1.44.0"]
+
+[project.urls]
+Repository = "https://github.com/huangbogeng/polars_bt_extension"
+Issues = "https://github.com/huangbogeng/polars_bt_extension/issues"
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "mypy"]

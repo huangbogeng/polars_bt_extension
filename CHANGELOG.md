@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-22
+
 ### Added
 - `pulse`, the isolated name for the existing T0 quote/signal engine
 - `mosaic`, a zero-IPC cross-sectional engine for dense daily panels
@@ -29,5 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Position management
 - Python API
 
-[Unreleased]: https://github.com/yourusername/polars_bt_extension/compare/v0.1.2...HEAD
-[0.1.2]: https://github.com/yourusername/polars_bt_extension/releases/tag/v0.1.2
+[Unreleased]: https://github.com/huangbogeng/polars_bt_extension/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/huangbogeng/polars_bt_extension/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/huangbogeng/polars_bt_extension/releases/tag/v0.1.2

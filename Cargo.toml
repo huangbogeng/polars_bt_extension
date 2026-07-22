@@ -2,6 +2,10 @@
 name = "polars_bt"
 version = "0.2.0"
 edition = "2021"
+description = "Rust-backed Polars expression plugins for T0 and cross-sectional backtesting"
+license = "MIT"
+repository = "https://github.com/huangbogeng/polars_bt_extension"
+readme = "README.md"
 
 [lib]
 name = "polars_bt"

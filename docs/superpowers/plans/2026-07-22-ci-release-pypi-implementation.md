@@ -15,8 +15,11 @@
 **Files:**
 - Modify: `.gitignore`
 - Add: `Cargo.lock`
+- Modify: `Cargo.toml`
+- Modify: `pyproject.toml`
 - Modify: `CHANGELOG.md`
 - Modify: `rust-toolchain.toml`
+- Modify: `rustfmt.toml`
 - Modify: `Makefile`
 
 - [ ] **Step 1: 从 `.gitignore` 删除 `Cargo.lock` 规则**
@@ -47,7 +50,11 @@ Expected: JSON 中 `polars_bt` 版本为 `0.2.0`，命令退出码 0。
 
 - [ ] **Step 5: 统一使用 Rust stable**
 
-将 `rust-toolchain.toml` 的 `channel` 改为 `stable`，并把 `Makefile` 中三处 `cargo +nightly` 改为普通 `cargo`。本地命令与 CI 使用同一工具链，避免同一提交因工具链漂移产生不同结果。
+将 `rust-toolchain.toml` 的 `channel` 固定为稳定版 `1.95`，删除 `rustfmt.toml` 中仅 nightly 支持的 import/comment 格式选项，并把 `Makefile` 中三处 `cargo +nightly` 改为普通 `cargo`。该版本满足 Polars 0.54.4 对已稳定 `strict_abs` 的要求，本地命令与 CI 使用同一工具链，避免同一提交因工具链漂移产生不同结果。
+
+- [ ] **Step 6: 补齐发布元数据**
+
+在 `Cargo.toml` 和 `pyproject.toml` 中声明简短描述、MIT license、README 和 GitHub repository；Python 元数据额外声明 Issues URL，确保 wheel/sdist 和 PyPI 页面包含完整来源信息。
 
 ### Task 2: 重写日常 CI
 
@@ -60,7 +67,7 @@ Expected: JSON 中 `polars_bt` 版本为 `0.2.0`，命令退出码 0。
 
 - [ ] **Step 2: 实现 `quality` job**
 
-在 Ubuntu runner 上检出代码，安装 stable Rust 的 rustfmt/clippy，启用 Rust cache，安装 uv，然后执行：
+在 Ubuntu runner 上检出代码，安装 Python 3.10、Rust 1.95 的 rustfmt/clippy，启用 Rust cache 并安装 uv。把 setup-python 的解释器路径写入 `PYO3_PYTHON`，把其 `sysconfig` `LIBDIR` 写入 `LD_LIBRARY_PATH`，然后执行：
 
 ```bash
 cargo fmt --all -- --check
@@ -113,7 +120,7 @@ on:
 
 - [ ] **Step 2: 校验 Release tag 与 Cargo 版本**
 
-`verify` job 检出 `${{ github.event.release.tag_name }}`，使用 Python 3.11 `tomllib` 读取 `Cargo.toml`。脚本要求 tag 匹配 `v[0-9]+.[0-9]+.[0-9]+`，并要求去掉 `v` 后等于 Cargo 版本；否则以非零状态退出。
+`verify` job 检出 `${{ github.event.release.tag_name }}`，使用 Python 3.11 `tomllib` 读取 `Cargo.toml`。脚本要求 tag 匹配 `v[0-9]+.[0-9]+.[0-9]+`，并要求去掉 `v` 后等于 Cargo 版本；否则以非零状态退出。该 Python 同时通过 `PYO3_PYTHON` 和 `LD_LIBRARY_PATH` 提供 Rust单测所需的 PyO3 链接库。
 
 - [ ] **Step 3: 在 verify job 执行质量门禁**
 
@@ -209,7 +216,7 @@ Run: `git diff --check`
 
 Run: `git status --short`
 
-Expected: 仅包含本计划文件、两份 workflow、`.gitignore`、`Cargo.lock`、`CHANGELOG.md`、`rust-toolchain.toml` 和 `Makefile`。
+Expected: 仅包含本计划文件、两份 workflow、`.gitignore`、`Cargo.lock`、`Cargo.toml`、`pyproject.toml`、`CHANGELOG.md`、`rust-toolchain.toml`、`rustfmt.toml`、`Makefile` 和 rustfmt 机械调整的 Rust 源文件。
 
 Commit: `ci: automate tested PyPI releases`
 

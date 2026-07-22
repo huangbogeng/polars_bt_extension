@@ -1,15 +1,7 @@
 use std::collections::VecDeque;
 
-use super::matcher::{
-    DefaultMatcher,
-    EasyMatcher,
-    MarketData,
-    Matcher,
-};
-use super::order::{
-    Order,
-    OrderDirection,
-};
+use super::matcher::{DefaultMatcher, EasyMatcher, MarketData, Matcher};
+use super::order::{Order, OrderDirection};
 use super::position::Position;
 
 /// Low-frequency exchange simulator for the Pulse T0 engine.

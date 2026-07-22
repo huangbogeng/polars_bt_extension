@@ -1,7 +1,4 @@
-use crate::pulse::order::{
-    Order,
-    OrderDirection,
-};
+use crate::pulse::order::{Order, OrderDirection};
 use crate::pulse::position::Position;
 
 /// Market data structure containing current price information

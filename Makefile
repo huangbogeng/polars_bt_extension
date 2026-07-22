@@ -15,9 +15,9 @@ install-release:
 	source .venv/bin/activate && maturin develop --release
 
 pre-commit:
-	cargo +nightly fmt --all -- --check
-	cargo +nightly clippy --package polars_bt --all-targets --all-features -- -D warnings
-	PYO3_PYTHON=$(PYTHON) LD_LIBRARY_PATH=$(PYTHON_LIBDIR) cargo +nightly test --all-targets
+	cargo fmt --all -- --check
+	cargo clippy --locked --package polars_bt --all-targets --all-features -- -D warnings
+	PYO3_PYTHON=$(PYTHON) LD_LIBRARY_PATH=$(PYTHON_LIBDIR) cargo test --locked --all-targets
 	$(PYTHON) -m pytest tests -q
 	$(PYTHON) -m ruff check polars_bt tests benchmarks
 

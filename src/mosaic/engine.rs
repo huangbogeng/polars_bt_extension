@@ -116,11 +116,7 @@ pub fn run_slices(days: &[DailySlice<'_>], config: Config) -> PolarsResult<Vec<D
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        run_slices,
-        Config,
-        DailySlice,
-    };
+    use super::{run_slices, Config, DailySlice};
 
     #[test]
     fn runs_sell_before_buy_and_preserves_row_order() {

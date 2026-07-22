@@ -2,11 +2,7 @@ mod engine;
 mod output;
 mod portfolio;
 
-use engine::{
-    run_slices,
-    Config,
-    DailySlice,
-};
+use engine::{run_slices, Config, DailySlice};
 use output::build_output;
 use polars::prelude::*;
 use pyo3_polars::derive::polars_expr;
