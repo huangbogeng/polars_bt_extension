@@ -80,6 +80,7 @@ impl PortfolioState {
         self.daily_turnover
     }
 
+    #[cfg(test)]
     pub fn holdings(&self) -> &[f64] {
         &self.hold
     }

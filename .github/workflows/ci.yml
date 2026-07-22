@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
     - uses: actions/checkout@v4
@@ -49,19 +49,25 @@ jobs:
       run: pip install uv
 
     - name: Install dependencies with uv
-      run: uv pip install --system maturin polars pytest
+      run: uv pip install --system maturin 'polars>=1.43,<1.44' pytest ruff
 
     - name: Run rustfmt
       run: cargo +nightly fmt --all -- --check
 
     - name: Run clippy
-      run: cargo +nightly clippy --package polars_bt_extension --all-features -- -D warnings
+      run: cargo +nightly clippy --package polars_bt --all-targets --all-features -- -D warnings
+
+    - name: Run Rust tests
+      run: cargo +nightly test --all-targets
 
     - name: Build wheels with maturin
-      run: maturin build --release
+      run: maturin build --release --out dist
 
     - name: Install wheels with uv
-      run: uv pip install --system target/wheels/*.whl --force-reinstall
+      run: uv pip install --system dist/*.whl --force-reinstall
 
-    - name: Run tests with uv
-      run: uv run pytest test_backtest.py -v
+    - name: Run Python tests
+      run: python -m pytest tests -q
+
+    - name: Run Ruff
+      run: python -m ruff check polars_bt tests benchmarks

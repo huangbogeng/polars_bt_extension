@@ -1,219 +1,135 @@
 # polars_bt
 
-A high-performance backtesting engine plugin for Polars, designed for financial trading strategy evaluation with efficient order matching and position management.
+`polars_bt` is a Rust-backed Polars expression plugin with two deliberately
+separate backtesting engines.
 
-## Features
+| Engine | Model | State axis | Output |
+| --- | --- | --- | --- |
+| `pulse` | T0 quote/signal matching | time rows | scalar summary |
+| `mosaic` | cross-sectional portfolio | dense daily panels | daily portfolio rows |
 
-- **High Performance**: Built with Rust and integrated with Polars for lightning-fast backtesting
-- **Flexible Order Matching**: Supports multiple matching algorithms (DefaultMatcher, EasyMatcher)
-- **Position Management**: Comprehensive tracking of long/short positions with P&L calculation
-- **Limit Price Support**: Built-in support for trading limits (limit up/down)
-- **Easy Integration**: Simple Python API that works seamlessly with Polars DataFrames
-- **Production Ready**: Thoroughly tested with clippy and rustfmt for code quality
+Both engines execute inside the Polars process. They do not serialize a
+DataFrame through Arrow IPC to call Rust.
 
-## Installation
+## Requirements and installation
 
-### From Source
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/polars_bt.git
-cd polars_bt
-
-# Install in development mode
-maturin develop
-
-# Or install in release mode for better performance
-maturin develop --release
-```
-
-### From PyPI (Coming Soon)
+- CPython 3.10, 3.11, or 3.12
+- Polars 1.43.x
 
 ```bash
 pip install polars_bt
 ```
 
-## Quick Start
+For a local release build:
+
+```bash
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python 'polars>=1.43,<1.44' maturin pytest
+.venv/bin/maturin develop --release
+```
+
+## Pulse: T0 quote matching
+
+`pulse` retains the original quote-by-quote T0 matcher and returns one Struct
+summary.
 
 ```python
 import polars as pl
-from polars_bt import backtest
+from polars_bt import pulse
 
-# Create sample data
-data = pl.DataFrame({
-    "ask_price": [100.0, 101.0, 102.0, 101.5, 100.5],
-    "bid_price": [99.5, 100.5, 101.5, 101.0, 100.0],
-    "lg_signal": [1, 0, 0, 1, 0],  # Long signal
-    "st_signal": [0, 1, 0, 0, 1],  # Short signal
-    "cl_signal": [0, 0, 0, 0, 0],  # Close long signal
-    "cs_signal": [0, 0, 0, 0, 0],  # Close short signal
-    "time_idx": [1000, 2000, 3000, 4000, 5000],
-    "limit_down": [90.0] * 5,
-    "limit_up": [110.0] * 5,
-})
-
-# Run backtest
-result = data.select(
-    backtest(
-        ask_price="ask_price",
-        bid_price="bid_price",
-        lg_signal="lg_signal",
-        st_signal="st_signal",
-        cl_signal="cl_signal",
-        cs_signal="cs_signal",
-        time_idx="time_idx",
-        limit_down="limit_down",
-        limit_up="limit_up",
-        step_1_limit=10,
-        step_2_limit=5,
-        verbose=False,
-    ).alias("backtest_result")
+quotes = pl.DataFrame(
+    {
+        "ask": [100.0, 101.0, 102.0],
+        "bid": [99.5, 100.5, 101.5],
+        "long": [1, 0, 0],
+        "short": [0, 1, 0],
+        "close_long": [0, 0, 0],
+        "close_short": [0, 0, 0],
+        "time": [1000, 2000, 3000],
+        "limit_down": [90.0] * 3,
+        "limit_up": [110.0] * 3,
+    }
 )
 
-print(result)
+summary = quotes.select(
+    pulse(
+        "ask",
+        "bid",
+        "long",
+        "short",
+        "close_long",
+        "close_short",
+        "time",
+        "limit_down",
+        "limit_up",
+    ).alias("pulse")
+)
 ```
 
-## API Reference
+Set `LOFIEX_MATCHER=easy` to use the relaxed matcher; the default matcher keeps
+the original limit-price checks.
 
-### `backtest()`
+## Mosaic: cross-sectional portfolios
 
-Main backtesting function that processes trading signals and returns performance metrics.
+`mosaic` scans a dense, date-major panel in fixed `asset_num` row blocks. It
+returns one daily Struct row containing `date`, `cash`, `nav`, `turnover`, and
+`holding_count`.
 
-**Parameters:**
+```python
+import polars as pl
+from polars_bt import mosaic
 
-- `ask_price` (str | pl.Expr): Ask price column
-- `bid_price` (str | pl.Expr): Bid price column
-- `lg_signal` (str | pl.Expr): Long signal column (0 or 1)
-- `st_signal` (str | pl.Expr): Short signal column (0 or 1)
-- `cl_signal` (str | pl.Expr): Close long signal column (0 or 1)
-- `cs_signal` (str | pl.Expr): Close short signal column (0 or 1)
-- `time_idx` (str | pl.Expr): Time index column
-- `limit_down` (str | pl.Expr): Limit down price column
-- `limit_up` (str | pl.Expr): Limit up price column
-- `step_1_limit` (int, default=10): Maximum number of signals per round
-- `step_2_limit` (int, default=5): Maximum exposure limit
-- `verbose` (bool, default=False): Enable verbose logging
+panel = pl.DataFrame(
+    {
+        "date": ["2024-01-02", "2024-01-02", "2024-01-03", "2024-01-03"],
+        "weight": [0.4, 0.4, 0.0, 0.5],
+        "ovn_ret": [0.0, 0.0, 0.01, -0.01],
+        "ind_ret": [0.0, 0.0, 0.0, 0.0],
+        "buyable": [True] * 4,
+        "sellable": [True] * 4,
+        "prev_close": [10.0] * 4,
+        "vwap": [10.0] * 4,
+        "is_rebalance": [True] * 4,
+    }
+)
 
-**Returns:**
-
-A Polars struct containing the following fields:
-
-- `lg_pos` (UInt64): Long position count
-- `st_pos` (UInt64): Short position count
-- `lg_win` (UInt64): Long position win count
-- `st_win` (UInt64): Short position win count
-- `all_signal` (UInt64): Total signal count
-- `floating_pnl` (Float64): Floating profit and loss
-- `realized_pnl` (Float64): Realized profit and loss
-
-## Order Matching Algorithms
-
-polars_bt_extension supports two order matching algorithms:
-
-### DefaultMatcher (Default)
-
-Implements strict cross matching rules:
-- **Long orders**: price >= ask_price, available long position > 0, not touching limit up
-- **Short orders**: price <= bid_price, available short position > 0, not touching limit down
-
-### EasyMatcher
-
-Implements more lenient matching rules:
-- **Long orders**: price >= ask_price, available long position > 0
-- **Short orders**: price <= bid_price, available short position > 0
-- No limit price restrictions
-
-**To switch matchers, set the environment variable:**
-
-```bash
-export LOFIEX_MATCHER=easy  # Use EasyMatcher
-export LOFIEX_MATCHER=default  # Use DefaultMatcher (default)
+daily = panel.select(
+    mosaic(
+        date="date",
+        weight="weight",
+        ovn_ret="ovn_ret",
+        ind_ret="ind_ret",
+        buyable="buyable",
+        sellable="sellable",
+        prev_close="prev_close",
+        vwap="vwap",
+        is_rebalance="is_rebalance",
+        asset_num=2,
+    ).alias("daily")
+).unnest("daily")
 ```
 
-## Architecture
+Mosaic's input contract is intentionally narrow:
 
-The project is organized into several core modules:
-
-- **`exchange`**: Low-frequency exchange simulator with order matching
-- **`order`**: Order management and direction handling
-- **`position`**: Position tracking and P&L calculation
-- **`matcher`**: Pluggable order matching algorithms
+- rows are already sorted by `(date, asset)` and every date has exactly
+  `asset_num` rows;
+- the asset row order is stable across dates, so the engine uses row offsets and
+  performs no joins or asset hashing;
+- preprocessing materializes a complete panel before the call;
+- use it as an eager whole-table expression; it changes the output length;
+- fees default to `st_fee=6e-4` and `lg_fee=1e-4`.
 
 ## Development
 
-### Prerequisites
-
-- Rust 1.70 or later
-- Python 3.9 or later
-- maturin
-
-### Building
-
 ```bash
-# Development build
-maturin develop
-
-# Release build (optimized)
-maturin develop --release
-
-# Build wheel
-maturin build --release
+make install-release
+make pre-commit
+.venv/bin/python benchmarks/benchmark_mosaic.py
 ```
 
-### Testing
-
-```bash
-# Run Rust tests
-cargo test
-
-# Run Python tests
-python test_backtest.py
-
-# Run clippy for code quality checks
-cargo clippy --all-targets --all-features -- -D warnings
-
-# Format code
-cargo fmt
-```
-
-### Code Quality
-
-This project maintains high code quality standards:
-
-- **Clippy**: All code passes strict clippy checks with `-D warnings`
-- **Rustfmt**: Code is formatted using standard rustfmt rules
-- **Documentation**: All public APIs have comprehensive documentation
-- **Testing**: Comprehensive test coverage for core functionality
-
-## Performance
-
-polars_bt_extension is optimized for performance:
-
-- **Zero-copy data transfer**: Efficient integration with Polars memory model
-- **Native Rust implementation**: Compiled to optimized machine code
-- **Minimal overhead**: Direct integration with Polars expression engine
-- **Scalable**: Handles large datasets efficiently
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+The accepted benchmark is 2,500 days by 5,000 assets (12.5 million rows), with
+a five-second hard limit measured only around the Mosaic expression call.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Built with [Polars](https://pola.rs/) - High-performance DataFrame library
-- Powered by [PyO3](https://pyo3.rs/) - Rust bindings for Python
-- Inspired by [polars-plugins-tutorial](https://marcogorelli.github.io/polars-plugins-tutorial/)
-
-## Contact
-
-For questions, suggestions, or issues, please open an issue on GitHub.
+MIT. See [LICENSE](LICENSE).

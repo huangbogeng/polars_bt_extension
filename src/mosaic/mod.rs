@@ -61,7 +61,7 @@ pub fn mosaic(inputs: &[Series], kwargs: MosaicKwargs) -> PolarsResult<Series> {
         ShapeMismatch: "all mosaic inputs must have equal length"
     );
     polars_ensure!(
-        row_count % kwargs.asset_num == 0,
+        row_count.is_multiple_of(kwargs.asset_num),
         ShapeMismatch: "row count must be divisible by asset_num"
     );
 

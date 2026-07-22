@@ -1,4 +1,6 @@
 SHELL=/bin/bash
+PYTHON=$(CURDIR)/.venv/bin/python
+PYTHON_LIBDIR=$(shell $(PYTHON) -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')
 
 venv:
 	python3 -m venv .venv
@@ -13,17 +15,17 @@ install-release:
 	source .venv/bin/activate && maturin develop --release
 
 pre-commit:
-	cargo +nightly fmt --all && cargo clippy --all-features
-	.venv/bin/python -m ruff check . --fix --exit-non-zero-on-fix
-	.venv/bin/python -m ruff format polars_bt tests
-	.venv/bin/mypy polars_bt tests
+	cargo +nightly fmt --all -- --check
+	cargo +nightly clippy --package polars_bt --all-targets --all-features -- -D warnings
+	PYO3_PYTHON=$(PYTHON) LD_LIBRARY_PATH=$(PYTHON_LIBDIR) cargo +nightly test --all-targets
+	$(PYTHON) -m pytest tests -q
+	$(PYTHON) -m ruff check polars_bt tests benchmarks
 
 test:
-	.venv/bin/python -m pytest tests
+	$(PYTHON) -m pytest tests -q
 
 run: install
 	source .venv/bin/activate && python run.py
 
 run-release: install-release
 	source .venv/bin/activate && python run.py
-
