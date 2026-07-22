@@ -3,6 +3,6 @@ import importlib.metadata
 
 __version__ = importlib.metadata.version("polars_bt")
 
-from .backtest import backtest
+from .pulse import pulse
 
-__all__ = ["backtest"]
+__all__ = ["pulse"]

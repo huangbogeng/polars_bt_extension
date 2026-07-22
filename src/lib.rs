@@ -3,9 +3,7 @@
 //! This library provides a Polars plugin for financial backtesting with
 //! efficient order matching and position management.
 
-pub mod exchange;
-pub mod order;
-pub mod position;
+pub mod pulse;
 
 use pyo3::prelude::*;
 use pyo3_polars::PolarsAllocator;

@@ -1,8 +1,8 @@
-use crate::order::{
+use crate::pulse::order::{
     Order,
     OrderDirection,
 };
-use crate::position::Position;
+use crate::pulse::position::Position;
 
 /// Market data structure containing current price information
 #[derive(Debug, Clone, Copy)]

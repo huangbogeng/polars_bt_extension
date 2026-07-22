@@ -1,4 +1,4 @@
-use crate::order::OrderDirection;
+use crate::pulse::order::OrderDirection;
 
 /// Position direction enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
