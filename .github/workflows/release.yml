@@ -99,7 +99,9 @@ jobs:
           target: x86_64
           manylinux: "2014"
           command: build
-          args: --release --locked --out dist
+          args: >-
+            --release --locked --out dist
+            --interpreter /opt/python/cp310-cp310/bin/python
           maturin-version: ${{ env.MATURIN_VERSION }}
 
       - name: Build source distribution

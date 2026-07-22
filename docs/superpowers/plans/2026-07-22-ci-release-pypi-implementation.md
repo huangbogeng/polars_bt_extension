@@ -85,7 +85,9 @@ with:
   target: x86_64
   manylinux: "2014"
   command: build
-  args: --release --locked --out dist
+  args: >-
+    --release --locked --out dist
+    --interpreter /opt/python/cp310-cp310/bin/python
 ```
 
 随后上传 `dist/*.whl`，artifact 名称为 `linux-wheel`，找不到文件时失败。
@@ -132,7 +134,9 @@ on:
 
 ```yaml
 command: build
-args: --release --locked --out dist
+args: >-
+  --release --locked --out dist
+  --interpreter /opt/python/cp310-cp310/bin/python
 ```
 
 再用同一 action 在 runner 上构建源码包：
