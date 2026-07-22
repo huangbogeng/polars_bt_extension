@@ -98,8 +98,12 @@ with:
 
 ```bash
 uv pip install --system --force-reinstall dist/*.whl pytest
+cp -R tests "${RUNNER_TEMP}/tests"
+cd "${RUNNER_TEMP}"
 python -m pytest tests -q
 ```
+
+测试必须在 source checkout 之外执行，避免仓库中的纯 Python 包遮蔽 wheel 内已安装的动态库。
 
 所有 action 均固定到已解析的 commit SHA，并在注释中保留版本标签。
 
@@ -150,7 +154,7 @@ args: --out dist
 
 - [ ] **Step 5: 在三个 Python 版本测试发布 wheel**
 
-`python-test` 依赖 `build`，下载发布 artifact，按 Task 2 的矩阵安装 wheel 并运行 `python -m pytest tests -q`。
+`python-test` 依赖 `build`，下载发布 artifact，按 Task 2 的矩阵安装 wheel，并将 tests 复制到 runner 临时目录后执行，确保导入来自已安装 wheel 而非 source checkout。
 
 - [ ] **Step 6: 使用 OIDC 发布同一 artifact**
 

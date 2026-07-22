@@ -131,5 +131,9 @@ jobs:
       - name: Install wheel and test dependency
         run: uv pip install --system --force-reinstall dist/*.whl "pytest==${PYTEST_VERSION}"
 
-      - name: Run Python tests
+      - name: Stage tests outside the source checkout
+        run: cp -R tests "${RUNNER_TEMP}/tests"
+
+      - name: Run Python tests against the installed wheel
+        working-directory: ${{ runner.temp }}
         run: python -m pytest tests -q
