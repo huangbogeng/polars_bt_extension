@@ -119,6 +119,49 @@ Mosaic's input contract is intentionally narrow:
 - use it as an eager whole-table expression; it changes the output length;
 - fees default to `st_fee=6e-4` and `lg_fee=1e-4`.
 
+### Mosaic diagnostics
+
+Enable Polars verbose mode to see bounded Rust-side diagnostics on stderr:
+
+```python
+with pl.Config(verbose=True):
+    daily = panel.select(
+        mosaic(
+            date="date",
+            weight="weight",
+            ovn_ret="ovn_ret",
+            ind_ret="ind_ret",
+            buyable="buyable",
+            sellable="sellable",
+            prev_close="prev_close",
+            vwap="vwap",
+            is_rebalance="is_rebalance",
+            asset_num=2,
+        ).alias("daily")
+    ).unnest("daily")
+```
+
+`pl.Config.set_verbose(True)` and the process-level `POLARS_VERBOSE=1` switch
+enable the same plugin diagnostics. Records use a stable prefix and compact
+key/value format:
+
+```text
+[polars-bt][mosaic][INFO] event=start rows=12500000 days=2500 assets=5000
+[polars-bt][mosaic][WARN] event=input_summary nan_weight=32 mixed_date_blocks=1
+[polars-bt][mosaic][WARN] event=halt reason=NEGATIVE_CASH day_index=1902 cash=-0.0021
+[polars-bt][mosaic][INFO] event=finish completed_days=1903 expected_days=2500
+```
+
+Verbose diagnostics add no result fields and do not change tolerated-input
+semantics. Non-finite portfolio state is always a hard error with day, asset,
+and calculation-stage context. Diagnostic reports retain only counts and the
+first location for each category, so memory use does not grow with the number
+of anomalies.
+
+Mosaic cannot detect cross-day asset-order changes because asset identifiers
+are intentionally absent from its row-offset protocol. Callers must continue
+to provide a stable asset order for every date.
+
 ## Development
 
 ```bash

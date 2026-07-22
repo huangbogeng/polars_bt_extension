@@ -1,3 +1,5 @@
+use polars::prelude::*;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Location {
     pub day_index: usize,
@@ -291,4 +293,3 @@ mod tests {
         assert_eq!(first[1].location.asset_index, Some(1));
     }
 }
-use polars::prelude::*;
