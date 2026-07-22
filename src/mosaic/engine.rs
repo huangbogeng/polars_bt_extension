@@ -38,6 +38,18 @@ pub struct DailySnapshot {
     pub holding_count: i64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Halt {
+    pub day_index: usize,
+    pub cash: f64,
+}
+
+#[derive(Debug)]
+pub struct RunOutcome {
+    pub snapshots: Vec<DailySnapshot>,
+    pub halt: Option<Halt>,
+}
+
 fn validate_day(day: &DailySlice<'_>, asset_num: usize) -> PolarsResult<()> {
     let lengths = [
         day.weight.len(),
@@ -55,17 +67,18 @@ fn validate_day(day: &DailySlice<'_>, asset_num: usize) -> PolarsResult<()> {
     Ok(())
 }
 
-pub fn run_slices(days: &[DailySlice<'_>], config: Config) -> PolarsResult<Vec<DailySnapshot>> {
+pub fn run_slices(days: &[DailySlice<'_>], config: Config) -> PolarsResult<RunOutcome> {
     let mut state = PortfolioState::new(config.asset_num);
     let mut snapshots = Vec::with_capacity(days.len());
+    let mut halt = None;
 
-    for day in days {
+    for (day_index, day) in days.iter().enumerate() {
         validate_day(day, config.asset_num)?;
-        state.apply_returns(day.ovn_ret);
+        state.apply_returns(day.ovn_ret, day_index, "overnight_settlement")?;
         state.begin_day();
 
         if day.is_rebalance.iter().any(|value| *value) {
-            let sell_diff = state.target_difference(day.weight);
+            let sell_diff = state.target_difference(day.weight, day_index, "sell_target")?;
             let mut executed = vec![0.0; config.asset_num];
             for index in 0..config.asset_num {
                 let amount = sell_diff[index];
@@ -77,9 +90,9 @@ pub fn run_slices(days: &[DailySlice<'_>], config: Config) -> PolarsResult<Vec<D
                     executed[index] = amount;
                 }
             }
-            state.apply_deals(&executed, config.st_fee);
+            state.apply_deals(&executed, config.st_fee, day_index, "sell_execution")?;
 
-            let buy_diff = state.target_difference(day.weight);
+            let buy_diff = state.target_difference(day.weight, day_index, "buy_target")?;
             let available_cash = state.cash();
             let mut cumulative = 0.0;
             executed.fill(0.0);
@@ -94,11 +107,11 @@ pub fn run_slices(days: &[DailySlice<'_>], config: Config) -> PolarsResult<Vec<D
                     executed[index] = amount;
                 }
             }
-            state.apply_deals(&executed, config.lg_fee);
+            state.apply_deals(&executed, config.lg_fee, day_index, "buy_execution")?;
         }
 
-        state.apply_returns(day.ind_ret);
-        state.finalize_turnover();
+        state.apply_returns(day.ind_ret, day_index, "intraday_settlement")?;
+        state.finalize_turnover(day_index)?;
         snapshots.push(DailySnapshot {
             cash: state.cash(),
             nav: state.nav(),
@@ -107,11 +120,15 @@ pub fn run_slices(days: &[DailySlice<'_>], config: Config) -> PolarsResult<Vec<D
         });
 
         if state.cash() < -0.00001 {
+            halt = Some(Halt {
+                day_index,
+                cash: state.cash(),
+            });
             break;
         }
     }
 
-    Ok(snapshots)
+    Ok(RunOutcome { snapshots, halt })
 }
 
 #[cfg(test)]
@@ -143,7 +160,9 @@ mod tests {
             },
         ];
 
-        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.0)).unwrap();
+        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.0))
+            .unwrap()
+            .snapshots;
 
         assert_eq!(snapshots.len(), 2);
         assert!((snapshots[0].nav - 1.0).abs() < 1e-15);
@@ -164,7 +183,9 @@ mod tests {
             is_rebalance: &[false, false],
         }];
 
-        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.0)).unwrap();
+        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.0))
+            .unwrap()
+            .snapshots;
 
         assert_eq!(snapshots[0].turnover, 0.0);
         assert_eq!(snapshots[0].holding_count, 0);
@@ -195,7 +216,9 @@ mod tests {
             },
         ];
 
-        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.0)).unwrap();
+        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.0))
+            .unwrap()
+            .snapshots;
 
         assert!((snapshots[1].turnover - 0.4).abs() < 1e-15);
         assert_eq!(snapshots[1].holding_count, 2);
@@ -214,7 +237,9 @@ mod tests {
             is_rebalance: &[true, true],
         }];
 
-        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.0)).unwrap();
+        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.0))
+            .unwrap()
+            .snapshots;
 
         assert_eq!(snapshots[0].cash, 1.0);
         assert_eq!(snapshots[0].turnover, 0.0);
@@ -233,7 +258,9 @@ mod tests {
             is_rebalance: &[true, true],
         }];
 
-        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.01)).unwrap();
+        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.01))
+            .unwrap()
+            .snapshots;
 
         assert!((snapshots[0].nav - 0.996).abs() < 1e-15);
     }
@@ -251,7 +278,9 @@ mod tests {
             is_rebalance: &[true, true],
         }];
 
-        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.0)).unwrap();
+        let snapshots = run_slices(&days, Config::new(2, 0.0, 0.0))
+            .unwrap()
+            .snapshots;
 
         assert_eq!(snapshots[0].cash, 0.5);
         assert!((snapshots[0].turnover - 0.5).abs() < 1e-15);
@@ -293,9 +322,86 @@ mod tests {
             },
         ];
 
-        let snapshots = run_slices(&days, Config::new(1, 3.0, 0.0)).unwrap();
+        let outcome = run_slices(&days, Config::new(1, 3.0, 0.0)).unwrap();
 
-        assert_eq!(snapshots.len(), 2);
-        assert!(snapshots[1].cash < -0.00001);
+        assert_eq!(outcome.snapshots.len(), 2);
+        assert!(outcome.snapshots[1].cash < -0.00001);
+        let halt = outcome.halt.unwrap();
+        assert_eq!(halt.day_index, 1);
+        assert_eq!(halt.cash, outcome.snapshots[1].cash);
+    }
+
+    #[test]
+    fn rejects_non_finite_overnight_state_with_context() {
+        let days = [DailySlice {
+            weight: &[0.0],
+            ovn_ret: &[f64::INFINITY],
+            ind_ret: &[0.0],
+            buyable: &[true],
+            sellable: &[true],
+            prev_close: &[10.0],
+            vwap: &[10.0],
+            is_rebalance: &[false],
+        }];
+
+        let error = run_slices(&days, Config::new(1, 0.0, 0.0)).unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("day_index=0"));
+        assert!(message.contains("asset_index=0"));
+        assert!(message.contains("stage=overnight_settlement"));
+        assert!(message.contains("reason=NONFINITE_HOLDING"));
+    }
+
+    #[test]
+    fn rejects_non_finite_weight_target_with_context() {
+        let days = [DailySlice {
+            weight: &[f64::INFINITY],
+            ovn_ret: &[0.0],
+            ind_ret: &[0.0],
+            buyable: &[true],
+            sellable: &[true],
+            prev_close: &[10.0],
+            vwap: &[10.0],
+            is_rebalance: &[true],
+        }];
+
+        let message = run_slices(&days, Config::new(1, 0.0, 0.0))
+            .unwrap_err()
+            .to_string();
+        assert!(message.contains("stage=sell_target"));
+        assert!(message.contains("reason=NONFINITE_TARGET_DIFFERENCE"));
+    }
+
+    #[test]
+    fn rejects_non_finite_intraday_state_with_context() {
+        let days = [
+            DailySlice {
+                weight: &[0.4],
+                ovn_ret: &[0.0],
+                ind_ret: &[0.0],
+                buyable: &[true],
+                sellable: &[true],
+                prev_close: &[10.0],
+                vwap: &[10.0],
+                is_rebalance: &[true],
+            },
+            DailySlice {
+                weight: &[0.4],
+                ovn_ret: &[0.0],
+                ind_ret: &[f64::INFINITY],
+                buyable: &[true],
+                sellable: &[true],
+                prev_close: &[10.0],
+                vwap: &[10.0],
+                is_rebalance: &[false],
+            },
+        ];
+
+        let message = run_slices(&days, Config::new(1, 0.0, 0.0))
+            .unwrap_err()
+            .to_string();
+        assert!(message.contains("day_index=1"));
+        assert!(message.contains("stage=intraday_settlement"));
+        assert!(message.contains("reason=NONFINITE_HOLDING"));
     }
 }

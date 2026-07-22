@@ -93,14 +93,15 @@ pub fn mosaic(inputs: &[Series], kwargs: MosaicKwargs) -> PolarsResult<Series> {
         });
     }
 
-    let snapshots = run_slices(
+    let outcome = run_slices(
         &days,
         Config::new(kwargs.asset_num, kwargs.st_fee, kwargs.lg_fee),
     )?;
+    let snapshots = &outcome.snapshots;
     let date_indices = (0..snapshots.len())
         .map(|day| (day * kwargs.asset_num) as IdxSize)
         .collect::<Vec<_>>();
     let dates = inputs[0].take(&IdxCa::from_vec("date_idx".into(), date_indices))?;
 
-    build_output(dates, &snapshots)
+    build_output(dates, snapshots)
 }
