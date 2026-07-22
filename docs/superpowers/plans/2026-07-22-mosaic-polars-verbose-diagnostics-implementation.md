@@ -101,7 +101,9 @@ Add to `src/diagnostics.rs`:
 
 ```rust
 pub fn verbose_enabled() -> bool {
-    polars::config::verbose()
+    let config = polars_config::config();
+    config.reload_env_var("POLARS_VERBOSE");
+    config.verbose()
 }
 
 pub fn emit(component: &str, level: Level, event: &str, fields: &[(&str, String)]) {

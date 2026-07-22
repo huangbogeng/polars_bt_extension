@@ -2068,6 +2068,7 @@ version = "0.2.0"
 dependencies = [
  "chrono",
  "polars",
+ "polars-config",
  "pyo3",
  "pyo3-polars",
  "serde",

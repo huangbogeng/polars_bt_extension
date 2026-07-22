@@ -82,7 +82,9 @@ requirement.
 
 `src/diagnostics.rs` owns the minimal shared integration with Polars:
 
-- read `polars::config::verbose()` once at the plugin boundary;
+- reload and read `POLARS_VERBOSE` through `polars_config::config()` once at
+  the plugin boundary, so Python-side `pl.Config` changes reach the plugin's
+  independently linked Rust configuration cache;
 - emit deterministic stderr records;
 - normalize the log prefix and levels;
 - introduce no `log` or `tracing` dependency.
