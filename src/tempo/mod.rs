@@ -1,8 +1,11 @@
+mod diagnostics;
 mod engine;
 mod output;
 mod portfolio;
 mod validation;
 
+use crate::diagnostics::{emit, verbose_enabled, Level};
+use diagnostics::inspect_inputs;
 use engine::{run_slices, Config, TimestampSlice};
 use output::build_output;
 use polars::prelude::*;
@@ -113,6 +116,35 @@ fn tempo_impl(inputs: &[Series], kwargs: TempoKwargs) -> PolarsResult<Series> {
         is_rebalance: &is_rebalance,
     })?;
 
+    let verbose = verbose_enabled();
+    if verbose {
+        emit(
+            "tempo",
+            Level::Info,
+            "start",
+            &[
+                ("rows", row_count.to_string()),
+                ("timestamps", layout.starts.len().to_string()),
+                ("assets", layout.asset_num.to_string()),
+            ],
+        );
+        let report = inspect_inputs(weight, period_ret, &is_rebalance, layout.asset_num);
+        let summary = report.summary_fields();
+        if !summary.is_empty() {
+            emit("tempo", Level::Warn, "input_summary", &summary);
+        }
+        for first in report.first_diagnostics() {
+            let mut fields = vec![
+                ("code", first.code.to_string()),
+                ("time_index", first.location.time_index.to_string()),
+            ];
+            if let Some(asset_index) = first.location.asset_index {
+                fields.push(("asset_index", asset_index.to_string()));
+            }
+            emit("tempo", Level::Warn, "first", &fields);
+        }
+    }
+
     let mut slices = Vec::with_capacity(layout.starts.len());
     for start in layout.starts.iter().copied() {
         let end = start + layout.asset_num;
@@ -130,6 +162,17 @@ fn tempo_impl(inputs: &[Series], kwargs: TempoKwargs) -> PolarsResult<Series> {
         Config::new(layout.asset_num, kwargs.st_fee, kwargs.lg_fee, kwargs.t1),
     )?
     .snapshots;
+    if verbose {
+        emit(
+            "tempo",
+            Level::Info,
+            "finish",
+            &[
+                ("completed_timestamps", snapshots.len().to_string()),
+                ("expected_timestamps", layout.starts.len().to_string()),
+            ],
+        );
+    }
 
     let datetime_indices = layout
         .starts
