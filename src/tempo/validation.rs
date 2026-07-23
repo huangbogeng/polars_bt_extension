@@ -110,12 +110,11 @@ pub fn validate_layout(inputs: ValidationInputs<'_>) -> PolarsResult<Layout> {
                 "tempo mixed is_rebalance inside block: row={row} datetime={datetime}"
             );
         }
-        for asset_index in 0..asset_num {
+        for (asset_index, expected) in canonical.iter().enumerate() {
             let row = start + asset_index;
             let asset = inputs.assets[row];
-            let expected = canonical[asset_index];
             polars_ensure!(
-                asset == expected,
+                asset == *expected,
                 ShapeMismatch:
                 "tempo asset order mismatch: row={row} datetime={datetime} \
                  asset={asset} expected={expected}"

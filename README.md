@@ -1,12 +1,13 @@
 # polars_bt
 
-`polars_bt` is a Rust-backed Polars expression plugin with two deliberately
+`polars_bt` is a Rust-backed Polars expression plugin with three deliberately
 separate backtesting engines.
 
 | Engine | Model | State axis | Output |
 | --- | --- | --- | --- |
 | `pulse` | T0 quote/signal matching | time rows | scalar summary |
 | `mosaic` | cross-sectional portfolio | dense daily panels | daily portfolio rows |
+| `tempo` | multi-time cross-sectional portfolio | dense datetime panels | timestamp portfolio rows |
 
 Both engines execute inside the Polars process. They do not serialize a
 DataFrame through Arrow IPC to call Rust.
@@ -165,16 +166,83 @@ Mosaic cannot detect cross-day asset-order changes because asset identifiers
 are intentionally absent from its row-offset protocol. Callers must continue
 to provide a stable asset order for every date.
 
+## Tempo: intraday and cross-day portfolios
+
+`tempo` extends the dense row-offset model to arbitrary timestamps. Every
+datetime contains a complete target cross-section, while `is_rebalance`
+controls whether that timestamp only marks the existing portfolio or also
+trades toward the supplied weights.
+
+```python
+from datetime import datetime
+
+import polars as pl
+from polars_bt import tempo
+
+panel = pl.DataFrame(
+    {
+        "datetime": [
+            datetime(2024, 1, 2, 9, 31),
+            datetime(2024, 1, 2, 9, 31),
+            datetime(2024, 1, 2, 14, 30),
+            datetime(2024, 1, 2, 14, 30),
+        ],
+        "asset": ["A", "B", "A", "B"],
+        "weight": [0.4, 0.4, 0.0, 0.8],
+        "period_ret": [0.0, 0.0, 0.01, -0.01],
+        "buyable": [True] * 4,
+        "sellable": [True] * 4,
+        "is_rebalance": [True] * 4,
+    }
+)
+
+path = panel.select(
+    tempo(
+        "datetime",
+        "asset",
+        "weight",
+        "period_ret",
+        "buyable",
+        "sellable",
+        "is_rebalance",
+        t1=True,
+    ).alias("path")
+).unnest("path")
+```
+
+Tempo's contract is:
+
+- rows are sorted by `(datetime, asset)` and every datetime contains the same
+  assets in the same order;
+- the first timestamp defines the canonical asset vector; Rust validates every
+  later timestamp before running the backtest and never sorts or joins;
+- `period_ret` is the return from the preceding timestamp to the current one,
+  and is applied before the current rebalance;
+- `is_rebalance=False` still marks holdings and emits a snapshot but does not
+  trade;
+- numeric nulls become NaN; NaN weights mean zero target and NaN returns mean
+  zero return, with bounded warnings available through Polars verbose mode;
+- `t1=True` freezes same-day purchases until the date derived from `datetime`
+  changes, while `t1=False` allows same-day sales;
+- output contains one row per datetime with `datetime`, `cash`, `nav`,
+  timestamp turnover, and `holding_count`.
+
+Tempo supports long-only weights. `buyable` and `sellable` describe market
+constraints at the current timestamp; Rust separately tracks the partially
+sellable quantity required by T+1.
+
 ## Development
 
 ```bash
 make install-release
 make pre-commit
 .venv/bin/python benchmarks/benchmark_mosaic.py
+.venv/bin/python benchmarks/benchmark_tempo.py
 ```
 
-The accepted benchmark is 2,500 days by 5,000 assets (12.5 million rows), with
-a five-second hard limit measured only around the Mosaic expression call.
+The accepted benchmark scale is 12.5 million rows. Mosaic uses 2,500 days by
+5,000 assets; Tempo uses 500 days by five timestamps by 5,000 assets. Both have
+a five-second hard limit measured only around the expression call.
 
 ## License
 
