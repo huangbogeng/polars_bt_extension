@@ -6,6 +6,7 @@
 mod diagnostics;
 pub mod mosaic;
 pub mod pulse;
+pub mod tempo;
 
 use pyo3::prelude::*;
 use pyo3_polars::PolarsAllocator;
