@@ -9,25 +9,44 @@ separate backtesting engines.
 | `mosaic` | cross-sectional portfolio | dense daily panels | daily portfolio rows |
 | `tempo` | multi-time cross-sectional portfolio | dense datetime panels | timestamp portfolio rows |
 
-Both engines execute inside the Polars process. They do not serialize a
+All three engines execute inside the Polars process. They do not serialize a
 DataFrame through Arrow IPC to call Rust.
 
 ## Requirements and installation
 
 - CPython 3.10, 3.11, or 3.12
-- Polars 1.43.x
+- Polars >=1.44.2,<1.45 (latest verified stable version: 1.44.2)
+- Prebuilt wheels: Linux x86_64; other platforms require a source build and
+  are not covered by the release test matrix
 
 ```bash
-pip install polars_bt
+pip install --upgrade polars_bt
 ```
 
-For a local release build:
+| polars_bt version | Python Polars |
+| --- | --- |
+| 0.3.x | >=1.44.2,<1.45 |
+| 0.2.1 | >=1.43,<1.44 |
+
+Version 0.3.0 adds Tempo and updates the native plugin for Polars 1.44.
+Upgrade `polars_bt` and Polars together; existing environments that retain
+Polars 1.43 should retain `polars_bt==0.2.1`.
+
+For a local build, install the Rust toolchain specified in
+`rust-toolchain.toml` (1.95), then run from the repository root:
 
 ```bash
 uv venv --python 3.12 .venv
-uv pip install --python .venv/bin/python 'polars>=1.43,<1.44' maturin pytest
-.venv/bin/maturin develop --release
+uv pip install --python .venv/bin/python -r requirements.txt
+make install-release
 ```
+
+The native plugin is built with Rust Polars 0.55.2, pyo3-polars 0.28, and
+PyO3 0.29. Upgrading the Python Polars minor version requires rebuilding and
+testing the plugin with the corresponding Rust dependencies. CPython's `abi3`
+wheel tag does not guarantee compatibility with a different Polars version.
+See [the upgrade analysis](docs/polars-upgrade.md) for the version mapping,
+engine contracts, and verification results.
 
 ## Pulse: T0 quote matching
 
@@ -116,7 +135,8 @@ Mosaic's input contract is intentionally narrow:
   `asset_num` rows;
 - the asset row order is stable across dates, so the engine uses row offsets and
   performs no joins or asset hashing;
-- preprocessing materializes a complete panel before the call;
+- callers materialize a complete panel before the call; the wrapper does not
+  sort or fill missing assets;
 - numeric nulls in `weight`, `ovn_ret`, `ind_ret`, `prev_close`, and `vwap`
   are preserved as NaN semantics rather than silently filled with zero;
 - use it as an eager whole-table expression; it changes the output length;
@@ -220,6 +240,7 @@ Tempo's contract is:
   and is applied before the current rebalance;
 - `is_rebalance=False` still marks holdings and emits a snapshot but does not
   trade;
+- use it as an eager whole-table expression; it changes the output length;
 - numeric nulls become NaN; NaN weights mean zero target and NaN returns mean
   zero return, with bounded warnings available through Polars verbose mode;
 - `t1=True` freezes same-day purchases until the date derived from `datetime`
@@ -235,7 +256,9 @@ sellable quantity required by T+1.
 
 ```bash
 make install-release
+make fmt
 make pre-commit
+.venv/bin/python examples/basic_usage.py
 .venv/bin/python benchmarks/benchmark_mosaic.py
 .venv/bin/python benchmarks/benchmark_tempo.py
 ```
@@ -243,6 +266,12 @@ make pre-commit
 The accepted benchmark scale is 12.5 million rows. Mosaic uses 2,500 days by
 5,000 assets; Tempo uses 500 days by five timestamps by 5,000 assets. Both have
 a five-second hard limit measured only around the expression call.
+
+`make fmt` formats Rust and Python sources; `make pre-commit` checks formatting,
+Clippy, Rust tests, Python tests, and Ruff. CI repeats the quality checks and
+tests the installed wheel outside the source checkout on Python 3.10–3.12.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the release process and
+[CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 

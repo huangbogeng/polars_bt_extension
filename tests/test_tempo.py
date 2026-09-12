@@ -75,11 +75,7 @@ def multiday_panel() -> pl.DataFrame:
     ]
     return pl.DataFrame(
         {
-            "datetime": [
-                timestamp
-                for timestamp in timestamps
-                for _ in range(2)
-            ],
+            "datetime": [timestamp for timestamp in timestamps for _ in range(2)],
             "asset": ["A", "B"] * len(timestamps),
             "weight": [0.8, 0.0, 0.8, 0.0, 0.0, 0.8, 0.0, 0.8],
             "period_ret": [0.0, 0.0, 0.1, 0.0, 0.0, 0.0, -0.02, 0.01],
@@ -175,9 +171,7 @@ def test_rejects_mixed_rebalance_flags():
 
 
 def test_rejects_negative_weight():
-    panel = dense_panel().with_columns(
-        pl.Series("weight", [-0.1, 0.4, 0.0, 0.8])
-    )
+    panel = dense_panel().with_columns(pl.Series("weight", [-0.1, 0.4, 0.0, 0.8]))
 
     with pytest.raises(Exception, match="weight must be non-negative"):
         run_tempo(panel)
@@ -205,5 +199,7 @@ def test_rejects_nullable_boolean_input(column: str):
         .alias(column)
     )
 
-    with pytest.raises(Exception, match=rf"Boolean input {column} cannot contain nulls"):
+    with pytest.raises(
+        Exception, match=rf"Boolean input {column} cannot contain nulls"
+    ):
         run_tempo(panel)

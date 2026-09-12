@@ -6,7 +6,9 @@ import sys
 import textwrap
 
 
-def run_diagnostic_script(tmp_path, *, verbose: bool) -> subprocess.CompletedProcess[str]:
+def run_diagnostic_script(
+    tmp_path, *, verbose: bool
+) -> subprocess.CompletedProcess[str]:
     script = textwrap.dedent(
         f"""
         from datetime import datetime

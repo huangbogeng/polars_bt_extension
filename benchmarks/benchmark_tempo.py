@@ -28,10 +28,8 @@ def make_panel(
         .select(
             (
                 pl.lit(BASE_DATETIME_US)
-                + (pl.col("time_index") // timestamps_per_day)
-                * MICROSECONDS_PER_DAY
-                + (pl.col("time_index") % timestamps_per_day)
-                * MICROSECONDS_PER_HOUR
+                + (pl.col("time_index") // timestamps_per_day) * MICROSECONDS_PER_DAY
+                + (pl.col("time_index") % timestamps_per_day) * MICROSECONDS_PER_HOUR
             )
             .cast(pl.Datetime("us"))
             .alias("datetime"),

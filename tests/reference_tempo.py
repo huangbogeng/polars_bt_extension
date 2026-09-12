@@ -19,11 +19,7 @@ def reference_tempo(
     datetimes = df["datetime"].to_list()
     first_datetime = datetimes[0]
     asset_num = next(
-        (
-            index
-            for index, value in enumerate(datetimes)
-            if value != first_datetime
-        ),
+        (index for index, value in enumerate(datetimes) if value != first_datetime),
         df.height,
     )
     columns = {name: df[name].to_list() for name in df.columns}
@@ -51,15 +47,11 @@ def reference_tempo(
             weights = [_clean(value) for value in columns["weight"][start:end]]
             nav = cash + sum(hold)
             differences = [
-                nav * weight - holding
-                for weight, holding in zip(weights, hold)
+                nav * weight - holding for weight, holding in zip(weights, hold)
             ]
             sells = [0.0] * asset_num
             for asset_index, amount in enumerate(differences):
-                if (
-                    amount < 0.0
-                    and columns["sellable"][start + asset_index]
-                ):
+                if amount < 0.0 and columns["sellable"][start + asset_index]:
                     sells[asset_index] = max(
                         amount, -max(sellable_hold[asset_index], 0.0)
                     )
@@ -73,17 +65,13 @@ def reference_tempo(
 
             nav = cash + sum(hold)
             differences = [
-                nav * weight - holding
-                for weight, holding in zip(weights, hold)
+                nav * weight - holding for weight, holding in zip(weights, hold)
             ]
             available_cash = cash
             cumulative = 0.0
             buys = [0.0] * asset_num
             for asset_index, amount in enumerate(differences):
-                eligible = (
-                    amount > 0.0
-                    and columns["buyable"][start + asset_index]
-                )
+                eligible = amount > 0.0 and columns["buyable"][start + asset_index]
                 candidate = amount if eligible else 0.0
                 cumulative += candidate * (1.0 + lg_fee)
                 if eligible and cumulative < available_cash:
@@ -103,9 +91,7 @@ def reference_tempo(
                 "cash": cash,
                 "nav": nav,
                 "turnover": traded_abs / nav if nav > 1e-12 else 0.0,
-                "holding_count": sum(
-                    abs(value) > 1e-8 for value in hold
-                ),
+                "holding_count": sum(abs(value) > 1e-8 for value in hold),
             }
         )
 

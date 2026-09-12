@@ -1,8 +1,10 @@
-"""Runnable examples for the Pulse and Mosaic engines."""
+"""Runnable examples for the Pulse, Mosaic, and Tempo engines."""
+
+from datetime import datetime
 
 import polars as pl
 
-from polars_bt import mosaic, pulse
+from polars_bt import mosaic, pulse, tempo
 
 
 def pulse_example() -> pl.DataFrame:
@@ -64,8 +66,41 @@ def mosaic_example() -> pl.DataFrame:
     ).unnest("daily")
 
 
+def tempo_example() -> pl.DataFrame:
+    panel = pl.DataFrame(
+        {
+            "datetime": [
+                datetime(2024, 1, 2, 9, 31),
+                datetime(2024, 1, 2, 9, 31),
+                datetime(2024, 1, 2, 14, 30),
+                datetime(2024, 1, 2, 14, 30),
+            ],
+            "asset": ["A", "B", "A", "B"],
+            "weight": [0.4, 0.4, 0.0, 0.8],
+            "period_ret": [0.0, 0.0, 0.01, -0.01],
+            "buyable": [True] * 4,
+            "sellable": [True] * 4,
+            "is_rebalance": [True] * 4,
+        }
+    )
+    return panel.select(
+        tempo(
+            "datetime",
+            "asset",
+            "weight",
+            "period_ret",
+            "buyable",
+            "sellable",
+            "is_rebalance",
+            t1=True,
+        ).alias("path")
+    ).unnest("path")
+
+
 if __name__ == "__main__":
     print("Pulse")
     print(pulse_example())
     print("\nMosaic")
     print(mosaic_example())
+    print("\nTempo")
+    print(tempo_example())
