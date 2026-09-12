@@ -25,10 +25,10 @@ pip install --upgrade polars_bt
 
 | polars_bt version | Python Polars |
 | --- | --- |
-| 0.3.x | >=1.44.2,<1.45 |
+| 0.2.2 | >=1.44.2,<1.45 |
 | 0.2.1 | >=1.43,<1.44 |
 
-Version 0.3.0 adds Tempo and updates the native plugin for Polars 1.44.
+Version 0.2.2 includes Tempo and updates the native plugin for Polars 1.44.
 Upgrade `polars_bt` and Polars together; existing environments that retain
 Polars 1.43 should retain `polars_bt==0.2.1`.
 

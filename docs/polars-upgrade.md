@@ -150,7 +150,7 @@ elementwise 来规避适配问题。新增测试只对 lazy plan 做 `collect_sc
 - README、CONTRIBUTING、ARCHITECTURE 和 CHANGELOG：更新支持范围和三个引擎说明。
 
 Rust 引擎源文件和 Python 公开 wrapper 无需修改。依赖适配最初在开发版本
-0.2.1 上核验；正式版本定为 0.3.0，同时包含自上次发布后新增的 Tempo 引擎。
+0.2.1 上核验；正式版本定为 0.2.2，同时包含自上次发布后新增的 Tempo 引擎。
 发布说明和版本范围见 CHANGELOG 与 README。
 
 ## 验证结果

@@ -9,7 +9,7 @@ def test_plugin_imports_with_supported_polars():
 
     assert tuple(map(int, pl.__version__.split("."))) >= (1, 44, 2)
     assert tuple(map(int, pl.__version__.split(".")[:2])) == (1, 44)
-    assert polars_bt.__version__ == "0.3.0"
+    assert polars_bt.__version__ == "0.2.2"
     assert _internal.__version__ == polars_bt.__version__
 
 
