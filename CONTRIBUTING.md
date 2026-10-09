@@ -2,7 +2,7 @@
 
 ## Development environment
 
-Use CPython 3.10, 3.11, or 3.12 with Polars >=1.44.2,<1.45 and the repository's
+Use CPython 3.10, 3.11, or 3.12 with Polars >=2.0.0,<2.1 and the repository's
 Rust 1.95 toolchain.
 
 ```bash
@@ -42,11 +42,11 @@ boundary must remain at or below five seconds.
 - Keep Python Polars and Rust Polars/pyo3-polars versions ABI-aligned.
 
 CI and release checks install the built wheel outside the source checkout on
-each supported Python version, with both the minimum Polars version (1.44.2)
-and the newest allowed 1.44 patch. When upgrading Polars, update the Python
-dependency range, Rust dependencies and lockfile, installation instructions,
-and both workflow matrices together. Run the complete Python suite against
-the rebuilt wheel; importing the package alone does not exercise the plugin FFI.
+each supported Python version, with both the minimum Polars version (2.0.0)
+and the newest allowed 2.0 patch. When upgrading Polars, update the Python
+dependency range, verify Rust dependencies and the lockfile, and update
+installation instructions and both workflow matrices together. Run the complete
+Python suite against the rebuilt wheel; importing the package alone does not exercise the plugin FFI.
 
 ## Pull requests
 

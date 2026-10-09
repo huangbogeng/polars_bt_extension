@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-09
+
+### Changed
+
+- Adapt to Python Polars >=2.0.0,<2.1 and rebuild with the existing Rust Polars
+  0.55.2 / pyo3-polars 0.28 stack; preserve the three backtest APIs
+- Update installation requirements and both wheel-test workflow matrices
+- Document explicit panel ordering and eager execution under Polars 2.0
+
+### Added
+
+- Regression coverage for lazy preprocessing followed by eager whole-table
+  backtests, including streaming engine affinity
+
 ## [0.2.2] - 2026-09-12
 
 ### Changed

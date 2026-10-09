@@ -37,6 +37,11 @@ Callers construct, sort, and materialize complete panels. The wrappers do not
 fill missing assets or reorder rows. All three plugins are non-elementwise:
 Pulse declares a scalar result, while Mosaic and Tempo declare that they change
 length. Portfolio expressions are intended for eager whole-table execution.
+Polars 2.0 defaults lazy collection to streaming, while eager DataFrame
+operations retain in-memory execution. Materialize preprocessing results and
+explicitly sort by time and asset before executing the plugin; joins and
+group-by operations may change row order. This does not add direct streaming
+backtest support.
 
 ## Pulse
 
@@ -107,12 +112,14 @@ Pulse retains its separate explicit `verbose` argument.
 ## Compatibility boundary
 
 The supported combination is CPython 3.10–3.12 and Python Polars
-`>=1.44.2,<1.45` with Rust Polars 0.55.2, `pyo3-polars` 0.28.0, and PyO3 0.29.
-Build and runtime validation are recorded in [the upgrade analysis](docs/polars-upgrade.md).
+`>=2.0.0,<2.1` with Rust Polars 0.55.2, `pyo3-polars` 0.28.0, and PyO3 0.29.
+Polars 2.0 retains the version-0 plugin FFI used by this Rust dependency stack;
+the Rust crate versions therefore remain unchanged. Both the 2.0 verification
+and historical 1.44 migration are recorded in [the upgrade analysis](docs/polars-upgrade.md).
 
 PyO3's `abi3-py310` feature covers the Python extension ABI. It does not make the
 Polars plugin ABI independent of the host Polars version. Python dependency
 bounds, Rust Polars, `polars-config`, `pyo3-polars`, and the rebuilt native
-extension must be upgraded together. Python import alone does not exercise the
-plugin FFI; compatibility checks must execute all three expressions and verify
-their output schemas and reference results.
+extension must be reviewed and validated together. Python import alone does
+not exercise the plugin FFI; compatibility checks must execute all three
+expressions and verify their output schemas and reference results.

@@ -16,7 +16,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 dynamic = ["version"]
-dependencies = ["polars>=1.44.2,<1.45.0"]
+dependencies = ["polars>=2.0.0,<2.1.0"]
 
 [project.urls]
 Repository = "https://github.com/huangbogeng/polars_bt_extension"

@@ -1,5 +1,8 @@
 # Polars 内核升级与项目解析
 
+> 当前支持范围已在 0.2.3 中升级为 Python Polars `>=2.0.0,<2.1.0`。
+> 下文保留 2026-09-12 的 1.44 迁移记录；2.0 适配记录见文末。
+
 本项目已将支持范围从 Python Polars 1.43.x 升级到 `>=1.44.2,<1.45.0`，
 并同步升级 Rust Polars、pyo3-polars 和 PyO3。三个公开函数仍然是
 `pulse`、`mosaic`、`tempo`，交易状态机和结果字段保持原样。
@@ -218,3 +221,40 @@ wheel 安装，并同步更新 Python 版本约束、开发说明和 CI 的最�
 [^6]: Polars maintainers, [`py-1.44.2` 插件调用实现](https://github.com/pola-rs/polars/blob/py-1.44.2/crates/polars-plan/src/plans/aexpr/function_expr/plugin.rs)；[表达式 derive](https://github.com/pola-rs/polars/blob/py-1.44.2/pyo3-polars/pyo3-polars-derive/src/lib.rs)；[PolarsAllocator](https://github.com/pola-rs/polars/blob/py-1.44.2/pyo3-polars/pyo3-polars/src/alloc.rs)。
 [^7]: Polars maintainers, [Python Polars 1.44.0 发行说明](https://github.com/pola-rs/polars/releases/tag/py-1.44.0)，Expr.rechunk 等弃用说明。
 [^8]: PyO3 maintainers, [PyO3 0.28→0.29 迁移说明](https://pyo3.rs/v0.29.0/migration.html#from-028-to-029)。
+
+## Polars 2.0 适配（2026-10-09，0.2.3）
+
+Python 依赖和 CI / Release wheel 测试矩阵切换到 `>=2.0.0,<2.1.0`。
+Rust Polars / polars-config 继续使用 0.55.2，pyo3-polars 继续使用 0.28.0，
+PyO3 继续使用锁定的 0.29.2；没有修改三个引擎的交易状态机或结果字段。
+
+核对官方 `py-2.0.0` 标签与 `py-1.44.2` 标签：
+`crates/polars-ffi/src/version_0.rs` 完全一致，`lib.rs` 的差异仅为
+`arrow` 到 `polars_arrow` 的模块引用名称变化。Python 与 Rust 版本号
+不是同一套编号，因此此次不因 Python 的主版本变化而盲目升级 Rust crate。
+最终兼容性以重建 wheel 后的实际表达式、schema 和参考结果测试为依据。
+
+Polars 2.0 默认让 LazyFrame.collect 使用 streaming；eager DataFrame
+操作继续采用 in-memory 执行。调用方应先完成预处理、显式排序、物化完整面板，
+再通过 DataFrame.select 执行回测。不要依赖 join / group_by 的输出顺序。
+没有新增直接 lazy / streaming 回测支持。字符串时间解析应使用
+`.str.to_date()` / `.str.to_datetime()`；现有日期测试已使用显式解析。
+
+本地验证结果：
+
+- 在源目录之外，安装重建的同一个 release wheel，Python 3.10 / 3.11 / 3.12
+  搭配 Polars 2.0.0 均通过 73 项测试。
+- 新增 9 项测试覆盖三个引擎在 auto / streaming / in-memory engine affinity 下，
+  lazy 预处理排序并物化后调用 eager 回测的结果一致性。
+- 保留分块、偏移切片、numeric null、日期 / 时间单位、Categorical 资产、
+  schema 推断以及独立参考实现测试。
+- Rust 的 31 项测试、Clippy、Rust / Python 格式检查及 Ruff 全部通过。
+- 示例执行成功。12,500,000 行 release 性能验收：Mosaic 1.790 秒，
+  Tempo 1.970 秒，均低于 5 秒阈值。这是本机验收结果，不代表跨版本加速结论。
+- 本地 wheel 使用 cp310-abi3 / manylinux_2_34；远程工作流继续负责构建并验证
+  manylinux2014 x86_64 发布 wheel。本地验证不能替代远程 CI。
+
+官方依据：[Python 2.0.0 发行](https://pypi.org/project/polars/2.0.0/)、
+[2.0 迁移指南](https://docs.pola.rs/releases/upgrade/2/)、
+[2.0 插件 FFI](https://github.com/pola-rs/polars/blob/py-2.0.0/crates/polars-ffi/src/version_0.rs)、
+[2.0 workspace 依赖](https://github.com/pola-rs/polars/blob/py-2.0.0/Cargo.toml)。
