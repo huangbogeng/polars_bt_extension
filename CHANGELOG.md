@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-30
+
+### Changed
+
+- Support Polars 2.1.x on Python 3.11–3.12 while retaining Polars 2.0.x support
+- Keep Python 3.10 on Polars 2.0.x through dependency markers because Polars 2.1
+  requires Python >=3.11
+- Extend CI and release wheel-test matrices to cover both Polars minor versions
+- Retain the verified Rust plugin stack and all three backtest APIs
+
+### Added
+
+- Regression coverage for numeric-string normalization before native execution
+
 ## [0.2.3] - 2026-10-09
 
 ### Changed

@@ -1,7 +1,8 @@
 # Polars 内核升级与项目解析
 
-> 当前支持范围已在 0.2.3 中升级为 Python Polars `>=2.0.0,<2.1.0`。
-> 下文保留 2026-09-12 的 1.44 迁移记录；2.0 适配记录见文末。
+> 当前兼容版本为 0.2.4：Python 3.10 使用 Polars `>=2.0.0,<2.1.0`，
+> Python 3.11–3.12 使用 `>=2.0.0,<2.2.0`。下文保留历史迁移记录；
+> 2.0 / 2.1 的适配与验证记录见文末。
 
 本项目已将支持范围从 Python Polars 1.43.x 升级到 `>=1.44.2,<1.45.0`，
 并同步升级 Rust Polars、pyo3-polars 和 PyO3。三个公开函数仍然是
@@ -258,3 +259,48 @@ Polars 2.0 默认让 LazyFrame.collect 使用 streaming；eager DataFrame
 [2.0 迁移指南](https://docs.pola.rs/releases/upgrade/2/)、
 [2.0 插件 FFI](https://github.com/pola-rs/polars/blob/py-2.0.0/crates/polars-ffi/src/version_0.rs)、
 [2.0 workspace 依赖](https://github.com/pola-rs/polars/blob/py-2.0.0/Cargo.toml)。
+
+
+## Polars 2.1 适配（2026-10-30，0.2.4）
+
+官方 Polars 2.1.0 于 2026-10-25 发布，要求 Python >=3.11。
+因此不能把现有 Python 3.10 测试矩阵直接切到 2.1。此次使用环境标记：
+
+- Python 3.10：`polars>=2.0.0,<2.1.0`。
+- Python 3.11–3.12：`polars>=2.0.0,<2.2.0`，兼容 2.0.x 和 2.1.x。
+
+`pyproject.toml` 与 `requirements.txt` 使用相同条件；CI / Release 同时覆盖
+各分支的最低版本和允许的最新补丁，并排除 Python 3.10 + Polars 2.1 组合。
+PyO3 保留 `abi3-py310`，无需为 Python 3.11 另做一套原生扩展。
+
+比较官方 `py-2.0.0` 与 `py-2.1.0` 标签，`polars-ffi/src/lib.rs` 和
+`version_0.rs` 完全一致。2.1 workspace 的 Rust Polars 仍标为 0.55.1；
+本项目继续使用已发布的 Rust Polars / polars-config 0.55.2、
+pyo3-polars 0.28.0 和锁定的 PyO3 0.29.2。没有修改交易引擎。
+
+2.1 收紧 eager 字符串与数字混合运算；三个 wrapper 原本已显式转换
+原生输入类型。新增三项回归测试，将数值输入列转为 String，再验证各引擎
+输出与原数值面板完全一致，确认该转换边界在 2.0 / 2.1 下仍有效。
+本次不扩大 lazy / streaming 回测支持范围。
+
+重建 release wheel，在源目录外安装后的完整验证：
+
+| Python | Polars | Python 测试 |
+| --- | --- | --- |
+| 3.10 | 2.0.0 | 76 passed |
+| 3.11 | 2.0.0 | 76 passed |
+| 3.12 | 2.0.0 | 76 passed |
+| 3.11 | 2.1.0 | 76 passed |
+| 3.12 | 2.1.0 | 76 passed |
+
+五个环境均通过 `uv pip check`。最终完整质量门禁通过：31 项 Rust 测试、
+76 项 Python 测试、Clippy、Ruff 及 Rust / Python 格式检查。
+Polars 2.1.0 下示例与 README 中的 Python 示例均执行成功；
+12,500,000 行 release 基准 Mosaic 1.724 秒、Tempo 1.920 秒，均低于
+5 秒阈值。以上为本机兼容性与性能验收，不构成版本间加速结论，
+也不替代远程 manylinux2014 wheel CI。正式发布状态以 GitHub Release 为准。
+
+官方依据：[2.1.0 发行说明](https://github.com/pola-rs/polars/releases/tag/py-2.1.0)、
+[PyPI Python 要求](https://pypi.org/project/polars/2.1.0/)、
+[2.1 workspace 依赖](https://github.com/pola-rs/polars/blob/py-2.1.0/Cargo.toml)、
+[2.1 插件 FFI](https://github.com/pola-rs/polars/blob/py-2.1.0/crates/polars-ffi/src/version_0.rs)。

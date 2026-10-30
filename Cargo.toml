@@ -1,6 +1,6 @@
 [package]
 name = "polars_bt"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 description = "Rust-backed Polars expression plugins for T0 and cross-sectional backtesting"
 license = "MIT"

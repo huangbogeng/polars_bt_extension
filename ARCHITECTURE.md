@@ -111,11 +111,12 @@ Pulse retains its separate explicit `verbose` argument.
 
 ## Compatibility boundary
 
-The supported combination is CPython 3.10–3.12 and Python Polars
-`>=2.0.0,<2.1` with Rust Polars 0.55.2, `pyo3-polars` 0.28.0, and PyO3 0.29.
-Polars 2.0 retains the version-0 plugin FFI used by this Rust dependency stack;
-the Rust crate versions therefore remain unchanged. Both the 2.0 verification
-and historical 1.44 migration are recorded in [the upgrade analysis](docs/polars-upgrade.md).
+The supported combination uses Rust Polars 0.55.2, `pyo3-polars` 0.28.0,
+and PyO3 0.29 with CPython 3.10–3.12. Python 3.10 uses Polars
+`>=2.0.0,<2.1`; Python 3.11–3.12 uses `>=2.0.0,<2.2`. Polars 2.1
+requires Python >=3.11. Polars 2.1 retains the version-0 plugin FFI from
+2.0, so the Rust crate versions remain unchanged. Verification results and
+historical migrations are recorded in [the upgrade analysis](docs/polars-upgrade.md).
 
 PyO3's `abi3-py310` feature covers the Python extension ABI. It does not make the
 Polars plugin ABI independent of the host Polars version. Python dependency

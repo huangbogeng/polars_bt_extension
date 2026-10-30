@@ -3,6 +3,7 @@
 from functools import partial
 
 import polars as pl
+import polars.selectors as cs
 import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
 
@@ -174,3 +175,20 @@ def test_lazy_preprocessing_materialized_before_eager_backtest(
 
     assert_frame_equal(prepared, baseline, check_exact=True)
     assert_frame_equal(actual, run(baseline), check_exact=True)
+
+
+@pytest.mark.parametrize(
+    ("make_panel", "run"),
+    [
+        pytest.param(pulse_panel, run_pulse, id="pulse"),
+        pytest.param(mosaic_panel, run_mosaic, id="mosaic"),
+        pytest.param(multiday_panel, run_tempo, id="tempo"),
+    ],
+)
+def test_backtests_cast_numeric_strings_before_native_execution(make_panel, run):
+    baseline = make_panel()
+    # Polars 2.1 rejects mixed string/numeric arithmetic. The wrappers must
+    # still normalize numeric input columns before passing them to Rust.
+    prepared = baseline.lazy().with_columns(cs.numeric().cast(pl.String)).collect()
+
+    assert_frame_equal(run(prepared), run(baseline), check_exact=True)
