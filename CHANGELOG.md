@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Split fast CI checks from parallel Rust checks and distribution builds, then
+  collect wheel tests and artifact verification in a single CI gate
+- Publish the exact main CI distributions after commit, version and SHA256
+  verification, replacing release recompilation and repeated matrix tests
+- Pin runners, reduce native debug artifacts, and separate matrix cache keys
+
+### Added
+
+- Release artifact manifests, provenance validation and failure-path tests
+- Main-branch release rehearsals that verify artifacts without uploading to PyPI
+
 ## [0.2.4] - 2026-10-30
 
 ### Changed

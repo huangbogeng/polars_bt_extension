@@ -3,192 +3,90 @@ name: Release
 on:
   release:
     types: [published]
+  # A main-branch dispatch exercises promotion without uploading to PyPI.
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-env:
-  CARGO_TERM_COLOR: always
-  CARGO_BUILD_JOBS: 2
-  MATURIN_VERSION: v1.12.6
-  PYTEST_VERSION: 9.0.2
-  RUFF_VERSION: 0.15.22
-  UV_VERSION: 0.10.7
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  verify:
-    name: Verify release source
-    runs-on: ubuntu-latest
-    env:
-      RELEASE_TAG: ${{ github.event.release.tag_name }}
+  artifacts:
+    name: Select verified main distributions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     steps:
-      - name: Check out release tag
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ github.event.release.tag_name }}
-          persist-credentials: false
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: "3.11"
-
-      - name: Configure PyO3 test linking
+      - name: Require main for a manual rehearsal
         run: |
-          python_libdir="$(python -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')"
-          echo "PYO3_PYTHON=$(command -v python)" >> "${GITHUB_ENV}"
-          echo "LD_LIBRARY_PATH=${python_libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" >> "${GITHUB_ENV}"
-
-      - name: Validate tag against Cargo version
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::Run the release rehearsal from main"
+            exit 1
+          fi
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Select successful CI for the exact release commit
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          python - <<'PY'
-          import os
-          import pathlib
-          import re
-          import tomllib
-
-          tag = os.environ["RELEASE_TAG"]
-          if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag) is None:
-              raise SystemExit(f"release tag must match vX.Y.Z, got {tag!r}")
-
-          cargo = tomllib.loads(pathlib.Path("Cargo.toml").read_text())
-          version = cargo["package"]["version"]
-          if tag.removeprefix("v") != version:
-              raise SystemExit(
-                  f"release tag {tag!r} does not match Cargo version {version!r}"
-              )
-          PY
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
-        with:
-          toolchain: "1.95"
-          components: rustfmt, clippy
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: false
-
-      - name: Check Rust formatting
-        run: cargo fmt --all -- --check
-
-      - name: Run Clippy
-        run: cargo clippy --locked --package polars_bt --all-targets --all-features -- -D warnings
-
-      - name: Run Rust tests
-        run: cargo test --locked --all-targets
-
-      - name: Run Ruff
-        run: uvx "ruff==${RUFF_VERSION}" check polars_bt tests benchmarks examples
-
-      - name: Check Python formatting
-        run: uvx "ruff==${RUFF_VERSION}" format --check polars_bt tests benchmarks examples
-
-  build:
-    name: Build release distributions
-    needs: verify
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out release tag
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ github.event.release.tag_name }}
-          persist-credentials: false
-
-      - name: Build manylinux2014 x86_64 wheel
-        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
-        with:
-          target: x86_64
-          manylinux: "2014"
-          command: build
-          args: >-
-            --release --locked --out dist
-            --interpreter /opt/python/cp310-cp310/bin/python
-          maturin-version: ${{ env.MATURIN_VERSION }}
-
-      - name: Build source distribution
-        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
-        with:
-          command: sdist
-          args: --out dist
-          maturin-version: ${{ env.MATURIN_VERSION }}
-
-      - name: Upload release distributions
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-distributions
-          path: |
-            dist/*.whl
-            dist/*.tar.gz
-          if-no-files-found: error
-
-  python-test:
-    name: Test Python ${{ matrix.python-version }} / Polars ${{ matrix.polars-version }}
-    needs: build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-        polars-version: ["2.0.0", "2.0.*", "2.1.0", "2.1.*"]
-        exclude:
-          # Polars 2.1 requires Python >=3.11.
-          - python-version: "3.10"
-            polars-version: "2.1.0"
-          - python-version: "3.10"
-            polars-version: "2.1.*"
-    steps:
-      - name: Check out release tag
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ github.event.release.tag_name }}
-          persist-credentials: false
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: false
-
-      - name: Download release distributions
+          args=()
+          if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            args=(--tag "$RELEASE_TAG")
+          fi
+          python tools/ci_release.py select \
+            --repository "$GITHUB_REPOSITORY" --commit "$(git rev-parse HEAD)" "${args[@]}"
+      - name: Download the verified artifact from that CI run
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-distributions
-          path: dist
-
-      - name: Install wheel and test dependency
-        run: uv pip install --system --force-reinstall dist/*.whl "polars==${{ matrix.polars-version }}" "pytest==${PYTEST_VERSION}"
-
-      - name: Stage tests outside the source checkout
-        run: cp -R tests "${RUNNER_TEMP}/tests"
-
-      - name: Run Python tests against the installed wheel
-        working-directory: ${{ runner.temp }}
-        run: python -m pytest tests -q
+          artifact-ids: ${{ steps.source.outputs.artifact_id }}
+          run-id: ${{ steps.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: verified
+          merge-multiple: true
+      - name: Verify provenance and select only distribution files
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+          SOURCE_RUN: ${{ steps.source.outputs.run_id }}
+          SOURCE_ATTEMPT: ${{ steps.source.outputs.run_attempt }}
+        run: >-
+          python tools/ci_release.py verify --directory verified --output upload
+          --repository "$GITHUB_REPOSITORY" --commit "$SOURCE_COMMIT"
+          --run-id "$SOURCE_RUN" --run-attempt "$SOURCE_ATTEMPT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pypi-distributions-${{ github.sha }}-${{ github.run_attempt }}
+          path: upload/
+          if-no-files-found: error
+          retention-days: 30
 
   publish:
     name: Publish to PyPI
-    needs: python-test
-    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    needs: artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     environment: pypi
     permissions:
       contents: read
       id-token: write
     steps:
-      - name: Download release distributions
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: release-distributions
+          name: pypi-distributions-${{ github.sha }}-${{ github.run_attempt }}
           path: dist
-
-      - name: Publish distributions with Trusted Publishing
+      - name: Publish the exact distributions verified by main CI
         uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # release/v1
         with:
           packages-dir: dist/

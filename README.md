@@ -283,6 +283,9 @@ a five-second hard limit measured only around the expression call.
 `make fmt` formats Rust and Python sources; `make pre-commit` checks formatting,
 Clippy, Rust tests, Python tests, and Ruff. CI repeats the quality checks and
 tests the installed wheel outside the source checkout on Python 3.10–3.12.
+Fast checks precede parallel Rust checks and distribution builds; a single
+`CI gate` collects all results. Release verifies and publishes the exact
+main CI distributions, with commit/version/hash checks and no rebuild.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the release process and
 [CHANGELOG.md](CHANGELOG.md) for version history.
 
