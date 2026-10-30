@@ -3,6 +3,7 @@
 from functools import partial
 
 import polars as pl
+import polars.selectors as cs
 import pytest
 from polars.testing import assert_frame_equal, assert_series_equal
 
@@ -143,3 +144,51 @@ def test_tempo_normalizes_datetime_and_asset_dtypes(time_unit, asset_dtype):
     assert result.schema == inferred
     assert result.schema["datetime"] == pl.Datetime("us")
     assert_frame_equal(result, run_tempo(baseline), check_exact=True)
+
+
+@pytest.mark.parametrize("engine_affinity", ["auto", "streaming", "in-memory"])
+@pytest.mark.parametrize(
+    ("make_panel", "run"),
+    [
+        pytest.param(pulse_panel, run_pulse, id="pulse"),
+        pytest.param(mosaic_panel, run_mosaic, id="mosaic"),
+        pytest.param(multiday_panel, run_tempo, id="tempo"),
+    ],
+)
+def test_lazy_preprocessing_materialized_before_eager_backtest(
+    make_panel, run, engine_affinity: str
+):
+    baseline = make_panel()
+    # Restore a known row order after preprocessing, including when collect()
+    # uses Polars 2.0's default streaming engine. The plugin sees the complete
+    # materialized panel, never an individual preprocessing batch.
+    with pl.Config(engine_affinity=engine_affinity):
+        prepared = (
+            baseline.with_row_index("_input_order")
+            .reverse()
+            .lazy()
+            .sort("_input_order")
+            .drop("_input_order")
+            .collect()
+        )
+        actual = run(prepared)
+
+    assert_frame_equal(prepared, baseline, check_exact=True)
+    assert_frame_equal(actual, run(baseline), check_exact=True)
+
+
+@pytest.mark.parametrize(
+    ("make_panel", "run"),
+    [
+        pytest.param(pulse_panel, run_pulse, id="pulse"),
+        pytest.param(mosaic_panel, run_mosaic, id="mosaic"),
+        pytest.param(multiday_panel, run_tempo, id="tempo"),
+    ],
+)
+def test_backtests_cast_numeric_strings_before_native_execution(make_panel, run):
+    baseline = make_panel()
+    # Polars 2.1 rejects mixed string/numeric arithmetic. The wrappers must
+    # still normalize numeric input columns before passing them to Rust.
+    prepared = baseline.lazy().with_columns(cs.numeric().cast(pl.String)).collect()
+
+    assert_frame_equal(run(prepared), run(baseline), check_exact=True)

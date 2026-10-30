@@ -15,7 +15,8 @@ DataFrame through Arrow IPC to call Rust.
 ## Requirements and installation
 
 - CPython 3.10, 3.11, or 3.12
-- Polars >=1.44.2,<1.45 (latest verified stable version: 1.44.2)
+- Python 3.10: Polars >=2.0.0,<2.1
+- Python 3.11–3.12: Polars >=2.0.0,<2.2 (target release: 2.1.0)
 - Prebuilt wheels: Linux x86_64; other platforms require a source build and
   are not covered by the release test matrix
 
@@ -25,12 +26,15 @@ pip install --upgrade polars_bt
 
 | polars_bt version | Python Polars |
 | --- | --- |
+| 0.2.4 | Python 3.10: >=2.0.0,<2.1; Python 3.11–3.12: >=2.0.0,<2.2 |
+| 0.2.3 | >=2.0.0,<2.1 |
 | 0.2.2 | >=1.44.2,<1.45 |
 | 0.2.1 | >=1.43,<1.44 |
 
-Version 0.2.2 includes Tempo and updates the native plugin for Polars 1.44.
-Upgrade `polars_bt` and Polars together; existing environments that retain
-Polars 1.43 should retain `polars_bt==0.2.1`.
+Version 0.2.4 adds Polars 2.1 support without changing the backtest API.
+Polars 2.1 requires Python >=3.11; dependency markers keep Python 3.10 on
+Polars 2.0.x. Upgrade `polars_bt` and Polars together; environments retaining
+Polars 1.44 should retain `polars_bt==0.2.2`.
 
 For a local build, install the Rust toolchain specified in
 `rust-toolchain.toml` (1.95), then run from the repository root:
@@ -42,11 +46,20 @@ make install-release
 ```
 
 The native plugin is built with Rust Polars 0.55.2, pyo3-polars 0.28, and
-PyO3 0.29. Upgrading the Python Polars minor version requires rebuilding and
-testing the plugin with the corresponding Rust dependencies. CPython's `abi3`
-wheel tag does not guarantee compatibility with a different Polars version.
-See [the upgrade analysis](docs/polars-upgrade.md) for the version mapping,
-engine contracts, and verification results.
+PyO3 0.29. Upgrading the Python Polars major or minor version requires
+rebuilding and testing the plugin with the corresponding Rust dependencies.
+CPython's `abi3` wheel tag does not guarantee compatibility with a different
+Polars version.
+See [the upgrade analysis](docs/polars-upgrade.md) for the 2.0/2.1 verification
+results and historical 1.44 migration, and [ARCHITECTURE.md](ARCHITECTURE.md)
+for current engine contracts.
+
+Polars 2.0 defaults lazy collection to streaming. Prepare and explicitly sort
+your complete panel before calling a backtest through eager `DataFrame.select`.
+For example, use `panel.lazy().sort(["datetime", "asset"]).collect()` before
+Tempo; use your asset key with `date` for Mosaic. Do not rely on join or
+group-by output order. Direct lazy/streaming backtest execution is outside
+the supported contract. See the [official 2.0 migration guide](https://docs.pola.rs/releases/upgrade/2/).
 
 ## Pulse: T0 quote matching
 

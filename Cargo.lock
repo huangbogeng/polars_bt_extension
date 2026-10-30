@@ -2065,7 +2065,7 @@ dependencies = [
 
 [[package]]
 name = "polars_bt"
-version = "0.2.2"
+version = "0.2.4"
 dependencies = [
  "chrono",
  "polars",
