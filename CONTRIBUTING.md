@@ -71,8 +71,9 @@ the manifest are retained for 30 days as
 `verified-distributions-COMMIT-ATTEMPT`. `CI gate` rejects failed, cancelled,
 or skipped required stages; use this stable name for a required status check.
 
-Runners are pinned to Ubuntu 24.04. The native dependency cache is populated
-by main pushes and restored by PRs; manylinux builds retain sccache and its
+Runners are pinned to Ubuntu 24.04. Native dependency caches are populated
+on main and within each PR; PRs can restore main caches, while main cannot
+restore PR-scoped caches. Manylinux builds retain sccache and its
 hit/miss statistics. Each Python/Polars job has its own uv cache suffix to
 avoid concurrent writes to the same cache key. A cold cache still requires a
 full native build.

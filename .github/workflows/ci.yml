@@ -88,7 +88,6 @@ jobs:
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           shared-key: native-checks-v1
-          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Run Clippy and Rust tests
         run: |
           cargo clippy --locked --package polars_bt --all-targets --all-features -- -D warnings
@@ -116,6 +115,10 @@ jobs:
           maturin-version: ${{ env.MATURIN_VERSION }}
           sccache: true
       - name: Build source distribution
+        # The preceding container exports RUSTC_WRAPPER, but its sccache binary
+        # is not installed on the host used for Cargo metadata during sdist.
+        env:
+          RUSTC_WRAPPER: ""
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
         with:
           command: sdist
