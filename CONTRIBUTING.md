@@ -38,7 +38,7 @@ boundary must remain at or below five seconds.
 - Keep `pulse`, `mosaic`, and `tempo` isolated; do not mix their state models.
 - Preserve Mosaic's dense, date-major, fixed-width input contract.
 - Do not add asset joins or hashing inside the Rust daily loop.
-- Preserve sell-before-buy order and the strict cumulative cash threshold.
+- Preserve Mosaic's sell-before-buy order and whole-order matching against remaining cash.
 - Add a failing test before changing behavior, then verify it passes.
 - Keep Python Polars and Rust Polars/pyo3-polars versions ABI-aligned.
 

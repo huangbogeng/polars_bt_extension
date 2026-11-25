@@ -69,11 +69,7 @@ impl PortfolioState {
         day_index: usize,
         stage: &'static str,
     ) -> PolarsResult<Vec<f64>> {
-        let scale = if self.total_hold() > 0.0001 {
-            self.nav()
-        } else {
-            1.0
-        };
+        let nav = self.nav();
         weights
             .iter()
             .zip(&self.hold)
@@ -81,7 +77,7 @@ impl PortfolioState {
             .map(|(asset_index, (weight, holding))| {
                 let clean = if weight.is_nan() { 0.0 } else { *weight };
                 ensure_finite(
-                    scale * clean - holding,
+                    nav * clean - holding,
                     day_index,
                     Some(asset_index),
                     stage,

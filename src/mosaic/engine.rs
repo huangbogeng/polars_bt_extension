@@ -93,18 +93,25 @@ pub fn run_slices(days: &[DailySlice<'_>], config: Config) -> PolarsResult<RunOu
             state.apply_deals(&executed, config.st_fee, day_index, "sell_execution")?;
 
             let buy_diff = state.target_difference(day.weight, day_index, "buy_target")?;
-            let available_cash = state.cash();
-            let mut cumulative = 0.0;
+            let mut remaining_cash = state.cash();
             executed.fill(0.0);
             for index in 0..config.asset_num {
-                let eligible = buy_diff[index] > 0.0
+                let amount = buy_diff[index];
+                let eligible = amount > 0.0
                     && day.buyable[index]
                     && day.prev_close[index] > 0.0
                     && day.vwap[index] > 0.0;
-                let amount = if eligible { buy_diff[index] } else { 0.0 };
-                cumulative += amount * (1.0 + config.lg_fee);
-                if eligible && cumulative < available_cash {
+                if !eligible {
+                    continue;
+                }
+                let required_cash = amount * (1.0 + config.lg_fee);
+                // Match lofi's relative tolerance for roundoff at the cash boundary.
+                if required_cash <= remaining_cash
+                    || (required_cash.is_finite()
+                        && required_cash - remaining_cash <= 1e-12 * required_cash)
+                {
                     executed[index] = amount;
+                    remaining_cash -= required_cash;
                 }
             }
             state.apply_deals(&executed, config.lg_fee, day_index, "buy_execution")?;
@@ -266,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_buy_when_cumulative_cost_equals_cash() {
+    fn fills_buy_when_cost_equals_remaining_cash() {
         let days = [DailySlice {
             weight: &[0.5, 0.5],
             ovn_ret: &[0.0, 0.0],
@@ -282,9 +289,9 @@ mod tests {
             .unwrap()
             .snapshots;
 
-        assert_eq!(snapshots[0].cash, 0.5);
-        assert!((snapshots[0].turnover - 0.5).abs() < 1e-15);
-        assert_eq!(snapshots[0].holding_count, 1);
+        assert_eq!(snapshots[0].cash, 0.0);
+        assert!((snapshots[0].turnover - 1.0).abs() < 1e-15);
+        assert_eq!(snapshots[0].holding_count, 2);
     }
 
     #[test]
