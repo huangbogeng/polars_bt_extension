@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-11-25
+
+### Fixed
+
+- Mosaic calculates target amounts from current NAV, including after liquidation.
+- Mosaic fills whole buy orders when remaining cash covers cost including fees,
+  allowing a relative tolerance of `1e-12` for floating-point rounding.
+- Rejected Mosaic buy orders leave cash available for later orders in asset order.
+
 ### Changed
 
 - Split fast CI checks from parallel Rust checks and distribution builds, then

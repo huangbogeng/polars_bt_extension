@@ -26,7 +26,7 @@ pip install --upgrade polars_bt
 
 | polars_bt version | Python Polars |
 | --- | --- |
-| 0.2.4 | Python 3.10: >=2.0.0,<2.1; Python 3.11–3.12: >=2.0.0,<2.2 |
+| 0.2.4–0.2.5 | Python 3.10: >=2.0.0,<2.1; Python 3.11–3.12: >=2.0.0,<2.2 |
 | 0.2.3 | >=2.0.0,<2.1 |
 | 0.2.2 | >=1.44.2,<1.45 |
 | 0.2.1 | >=1.43,<1.44 |
@@ -154,6 +154,13 @@ Mosaic's input contract is intentionally narrow:
   are preserved as NaN semantics rather than silently filled with zero;
 - use it as an eager whole-table expression; it changes the output length;
 - fees default to `st_fee=6e-4` and `lg_fee=1e-4`.
+
+Mosaic calculates each target amount from current portfolio NAV. It sells first
+and recalculates buy targets after sell fees. Buy orders are considered in asset
+row order and filled in full if remaining cash covers the amount plus the buy
+fee. Exact cash exhaustion is allowed, with a relative tolerance of `1e-12` for
+floating-point rounding. A rejected order leaves the budget available for the
+next order.
 
 ### Mosaic diagnostics
 

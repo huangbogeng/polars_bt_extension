@@ -27,11 +27,9 @@ def reference_ptrader(
 
         daily_trade_abs = 0.0
         if any(columns["is_rebalance"][offset:stop]):
-            total_hold = sum(hold)
-            nav = cash + total_hold
-            scale = nav if total_hold > 0.0001 else 1.0
+            nav = cash + sum(hold)
             weights = [_clean(value) for value in columns["weight"][offset:stop]]
-            diff = [scale * weight - value for weight, value in zip(weights, hold)]
+            diff = [nav * weight - value for weight, value in zip(weights, hold)]
             sells = [
                 amount
                 if amount < 0.0
@@ -47,12 +45,9 @@ def reference_ptrader(
             cash -= sum(sells)
             cash -= sold_abs * st_fee
 
-            total_hold = sum(hold)
-            nav = cash + total_hold
-            scale = nav if total_hold > 0.0001 else 1.0
-            diff = [scale * weight - value for weight, value in zip(weights, hold)]
-            available_cash = cash
-            cumulative = 0.0
+            nav = cash + sum(hold)
+            diff = [nav * weight - value for weight, value in zip(weights, hold)]
+            remaining_cash = cash
             buys = [0.0] * asset_num
             for index, amount in enumerate(diff):
                 eligible = (
@@ -61,10 +56,14 @@ def reference_ptrader(
                     and columns["prev_close"][offset + index] > 0.0
                     and columns["vwap"][offset + index] > 0.0
                 )
-                candidate = amount if eligible else 0.0
-                cumulative += candidate * (1.0 + lg_fee)
-                if eligible and cumulative < available_cash:
+                if not eligible:
+                    continue
+                required_cash = amount * (1.0 + lg_fee)
+                if required_cash <= remaining_cash or math.isclose(
+                    required_cash, remaining_cash, rel_tol=1e-12, abs_tol=0.0
+                ):
                     buys[index] = amount
+                    remaining_cash -= required_cash
             bought_abs = sum(abs(value) for value in buys)
             daily_trade_abs += bought_abs
             hold = [value + amount for value, amount in zip(hold, buys)]

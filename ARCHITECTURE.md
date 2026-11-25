@@ -61,15 +61,18 @@ date has `asset_num` rows in the same asset order. Rust therefore
 uses fixed row slices and a holding vector, with no joins, asset IDs, hashing, or
 Arrow IPC serialization.
 
-For each day the engine applies:
+The engine processes each day in this order:
 
-1. overnight returns;
-2. daily turnover reset;
-3. eligible sells;
-4. eligible buys in stable row order using captured cash and a strict `<` limit;
-5. intraday returns;
-6. turnover finalization and snapshot;
-7. negative-cash stop after the snapshot.
+1. Apply overnight returns.
+2. Reset daily turnover.
+3. Execute eligible sells with target amounts based on current NAV.
+4. Recalculate targets using NAV after sales and sell fees, then consider buy
+   orders in stable row order. Only filled orders debit cash, including buy
+   fees. The cash comparison allows exact equality and a relative tolerance
+   of `1e-12` for floating-point roundoff.
+5. Apply intraday returns.
+6. Finalize turnover and record the snapshot.
+7. Apply the negative-cash stop.
 
 The result has one Struct row per completed day: `date`, `cash`, `nav`,
 `turnover`, and `holding_count`. The date retains its input type.
@@ -92,8 +95,8 @@ returns; numeric nulls retain the NaN semantics described above.
 For each timestamp the engine releases T+1 holdings when the derived date
 changes, applies `period_ret` to existing holdings, and optionally rebalances.
 Eligible sells precede buys. Buys use stable row order, captured available cash,
-and the same strict `<` cash limit as Mosaic. With `t1=True`, purchases become
-sellable on a subsequent date; `t1=False` allows same-day sales. A timestamp
+and a strict `<` cash limit. With `t1=True`, purchases become sellable on a
+subsequent date. Set `t1=False` to allow same-day sales. A timestamp
 without rebalancing still marks holdings and emits a snapshot.
 
 The result has one Struct row per timestamp: `datetime`, `cash`, `nav`,

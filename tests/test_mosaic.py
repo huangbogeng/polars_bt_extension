@@ -106,6 +106,62 @@ def test_mosaic_rejects_non_rectangular_panel():
         run_mosaic(dense_panel().head(3))
 
 
+def flat_panel(dates: list[int], weights: list[float]) -> pl.DataFrame:
+    return pl.DataFrame(
+        {
+            "date": dates,
+            "weight": weights,
+            "ovn_ret": 0.0,
+            "ind_ret": 0.0,
+            "buyable": True,
+            "sellable": True,
+            "prev_close": 10.0,
+            "vwap": 10.0,
+            "is_rebalance": True,
+        }
+    )
+
+
+def test_mosaic_reentry_uses_nav_after_liquidation():
+    panel = flat_panel([1, 2, 3], [0.5, 0.0, 0.5]).with_columns(
+        pl.Series("ovn_ret", [0.0, 0.2, 0.0])
+    )
+    result = run_mosaic(panel, asset_num=1)
+
+    assert result["nav"].to_list() == pytest.approx([1.0, 1.1, 1.1])
+    assert result["holding_count"].to_list() == [1, 0, 1]
+    assert result["cash"].to_list() == pytest.approx([0.5, 1.1, 0.55])
+
+
+@pytest.mark.parametrize(
+    ("weights", "lg_fee", "cash", "holding_count"),
+    [
+        ([1.0], 0.0, 0.0, 1),
+        ([0.5], 1.0, 0.0, 1),
+        ([0.8, 0.1, 0.1], 0.0, 0.0, 3),
+        ([1.2, 0.2, 0.1], 0.0, 0.7, 2),
+        ([1.0 + 1e-10, 0.2], 0.0, 0.8, 1),
+    ],
+    ids=[
+        "exact_cash",
+        "exact_cash_with_fee",
+        "roundoff",
+        "rejected_order",
+        "over_tolerance",
+    ],
+)
+def test_mosaic_matches_whole_buys_against_remaining_cash(
+    weights, lg_fee, cash, holding_count
+):
+    asset_num = len(weights)
+    result = run_mosaic(
+        flat_panel([1] * asset_num, weights), asset_num=asset_num, lg_fee=lg_fee
+    )
+
+    assert result["cash"].item() == pytest.approx(cash, abs=1e-12)
+    assert result["holding_count"].item() == holding_count
+
+
 @pytest.mark.parametrize(
     "column",
     ["weight", "ovn_ret", "ind_ret", "prev_close", "vwap"],
